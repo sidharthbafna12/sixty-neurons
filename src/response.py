@@ -2,7 +2,7 @@ import numpy as np
 
 from params import *
 
-class Mouse:
+class Response:
     """ Data matrix convention for multiple trials:
         (S,T,L,N)-sized matrix implies:
             - S stimuli
@@ -30,14 +30,14 @@ class Mouse:
         # Gives a (10, 40, N)-shaped array for each stimulus.
         # For 16 stimuli
         # So (16, 10, 40, N)-shaped array.
-        self.dir_response \
+        self.response_dir \
                 = np.array([[sl[:,GRAY_SCREEN_TIME * SAMPLING_RATE:].T
                              for (index, sl) in enumerate(self.slices)
                              if struct.StimSeq[index] == stimulus]
                             for stimulus in sorted(DIRECTIONS)])
 
         # The response during the preceding gray screen stimulus
-        self.dir_bg \
+        self.bg_dir \
                 = np.array([[sl[:,:GRAY_SCREEN_TIME * SAMPLING_RATE].T
                              for (index, sl) in enumerate(self.slices)
                              if struct.StimSeq[index] == stimulus]
@@ -45,18 +45,18 @@ class Mouse:
         
         # Response to orientation means average opposite directions.
         L = len(DIRECTIONS)
-        self.ori_response \
-                = np.array([0.5 * (self.dir_response[i]
-                                 + self.dir_response[i + L/2])
+        self.response_ori \
+                = np.array([0.5 * (self.response_dir[i]
+                                 + self.response_dir[i + L/2])
                             for i in range(len(ORIENTATIONS))])
-        self.ori_bg \
-                = np.array([0.5 * (self.dir_bg[i]
-                                 + self.dir_bg[i + L/2])
+        self.bg_ori \
+                = np.array([0.5 * (self.bg_dir[i]
+                                 + self.bg_dir[i + L/2])
                             for i in range(len(ORIENTATIONS))])
 
     # Stimulus-wise response
     def sw_response(self, average_opposite_directions=True):
         if not average_opposite_directions:
-            return self.dir_response
+            return self.response_dir
         else:
-            return self.ori_response
+            return self.response_ori

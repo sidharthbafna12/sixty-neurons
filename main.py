@@ -1,90 +1,10 @@
-"""
-IMPORTANT - Read and understand this document first before commencing any
-analysis.
-
-About the experiment:
-    Virus expressing GCaMP6f was injected into the V1 of mice.
-    Approximately 3 weeks post infection, mice were imaged under a 2-photon
-    microscope while sinusoidal drifting gratings were presented on a computer
-    screen placed 3 inches from the mouse (1 degree of visual space ~ 21.3 
-    pixels on the screen).  
-
-Aims: (1) to map orientation tuning responses of excitatory pyramidal neurons
-          in V1.
-      (2) to determine response reliability at preferred orientation.
-      (3) to determine signal and noise correlations between neuron as a
-          function of orientation tuning.
-
-============ Notes about stimulus
-    Sinusoidal drifting gratings at 16 different directions (0:22.5:337.5).
-    Spatial frequency was fixed at 0.03 cycles per degree.
-    
-    Each direction was repeated 10 times (i. e. 10 trials per direction). 
-    Directions are presented in a randomized order.
-    
-    Each direction was presented for 2s and was always preceded by a 4s gray
-    screen. Therefore the total duration of the stimulus is 6s.
-    
-    Calcium signals (GCaMP6f in awake mice) were acquired from awake mice at
-    20 frames per seconds. Thus, sampling rate is 20Hz.
-
-============ Notes about Data.mat
-Data.mat contains 4 entries:
-    Data.rawF    = raw fluorescence values.
-                    Matrix size = number of cells x number of frames.
-    Data.dFF     = fluorescence normalized to baseline (dFF =  (F-F0)/F0,
-                   where F0 is the baseline fluorescence computed using a 
-                   sliding window of 400 frames). Same size as above.
-    Data.Spks    = inferred spike rate using the Vogelstein deconvolution
-                   algorithm. Same size as above.
-    Data.StimSeq = contains sequence of directions presented during that
-                   experiment. Vector size = 160 x 1.
-
-============ Notes about Ori.mat
-Ori.mat contains 20 entries. The most pertinent entries are:
-    Ori.OSI = orientation selectivity indices of the neurons
-    Ori.OrFit = double-wrapped Gaussian fits
-    Ori.OrFitQuality  = goodness of Gaussian fits. (Higher the
-                        percentage value, the better the fit)
-    Ori.Width = tuning width in degrees
-    Ori.PrefOri = preferred orientation
-    Ori.SpkResponse = Contains neural responses for each cells sorted
-                      according to the different directions.
-                      Size: 1xNumber of cell Cell array. Each cell entry 
-                      contains a 1x Number of Direction Cell array, which
-                      contains a Number of Frames x Trials matrix.
-
-============ Task
-    Work only with the data contained in Data.mat.
-
-    For each cell, use the information contained in StimSeq. To sort the dFF 
-    into various directions. Verify this result using Ori.CaResponse. Do the
-    same with Spks.
-
-    For each cell, use the sorted information to plot orientation-tuning curves,
-    that is, average response (could be dFF or spks, average over stimulus
-    epoch and time) vs. direction.  Sharply tuned cells should have responses
-    that peak at 1 orientation, while broadly tuned cells have responses to
-    almost all orientations.
-
-    Read paper A , code the equations in these papers corresponding to OSI and
-    preferred orientation. For each cell, compute OSI and preferred
-    orientation. OSI is a measure of how strongly a cell responds to an
-    orientation, so sharply tuned cells should have an OSI close to 1. Verify
-    these results using Ori.OSI.
-    
-    Perform whatever further analysis on the
-    data you desire. (Suggestions: compute correlation between cells and plot as
-    function of OSI or preferred oriention, compute reliability between
-    trials...)
-"""
+#!/usr/bin/env python
 
 # Experiment and plotting parameters
 from src.params import *
 
 # Numerical stuff
 import numpy as np
-from scipy.optimize import curve_fit
 import scipy.cluster.hierarchy as hac
 from scipy.spatial.distance import pdist
 
@@ -103,26 +23,17 @@ import sys
 ## Reading in the data.
 import os
 import scipy.io
-from src.mouse import Mouse
+from src.response import Response
 
-# Mouse recorded data location.
-data_locs = [os.path.join(DATA_DIR,
-                          'Mouse-%c/Data-Mouse%c.mat' % (c, c))
-                                                      for c in MICE_NAMES]
-# Orientation tuning responses.
-ori_locs = [os.path.join(DATA_DIR,
-                         'Mouse-%c/Solutions/Ori.mat' % c)
-                                                      for c in MICE_NAMES]
-
-mice_data = map(lambda loc : Mouse(scipy.io.loadmat(loc,
-                                                    struct_as_record=False,
-                                                    squeeze_me=True)['Data']),
-                data_locs)
+mice_data = map(lambda loc: Response(scipy.io.loadmat(loc,
+                                                      struct_as_record=False,
+                                                      squeeze_me=True)['Data']),
+                DATA_LOCS)
 
 ori_data = map(lambda loc : scipy.io.loadmat(loc,
                                              struct_as_record=False,
                                              squeeze_me=True)['Ori'],
-               ori_locs)
+               ORI_LOCS)
 
 directions = np.radians(DIRECTIONS)
 directions_finer = np.linspace(np.min(directions), np.max(directions),
@@ -132,17 +43,17 @@ sigma0 = 2 * np.pi / len(DIRECTIONS) # initial tuning curve width
 
 for index, m in enumerate(mice_data):
     name = MICE_NAMES[index]
-    print "Mouse %c" % name
+    print "Response %c" % name
 
     # Get average response to different directions.
     # Average over trials and time.
-    m.avg_dir_response = np.mean(m.dir_response, axis=(Mouse.TrialAxis,
-                                                       Mouse.TimeAxis))
+    m.avg_dir_response = np.mean(m.dir_response, axis=(Response.TrialAxis,
+                                                       Response.TimeAxis))
     
     # Find response correlation between neurons.
     m.ori_response_corr = \
             np.array([np.corrcoef(np.mean(m.ori_response,
-                                          axis=Mouse.TrialAxis)[i,:,:].T)
+                                          axis=Response.TrialAxis)[i,:,:].T)
                       for i in range(len(ORIENTATIONS))])
 
     
@@ -172,7 +83,7 @@ for index, m in enumerate(mice_data):
     m.sorted_ori_response = m.ori_response[:,:,:,m.osi_sort_idxs]
     m.sorted_ori_response_corr = \
             np.array([np.corrcoef(np.mean(m.sorted_ori_response,
-                                          axis=Mouse.TrialAxis)[i,:,:].T)
+                                          axis=Response.TrialAxis)[i,:,:].T)
                       for i in range(len(ORIENTATIONS))])
 
     # Also if it is more for neurons with the same preferred orientation.
@@ -180,7 +91,7 @@ for index, m in enumerate(mice_data):
     m.sorted_pref_ori_response = m.ori_response[:,:,:,m.pref_ori_sort_idxs]
     m.sorted_pref_ori_response_corr = \
             np.array([np.corrcoef(np.mean(m.sorted_pref_ori_response,
-                                          axis=Mouse.TrialAxis)[i,:,:].T)
+                                          axis=Response.TrialAxis)[i,:,:].T)
                       for i in range(len(ORIENTATIONS))])
 
     # Might as well do this for the R^2 values.
@@ -190,12 +101,12 @@ for index, m in enumerate(mice_data):
     m.pref_direction = pref_direction(m.dir_response, orientation_flag=False)
     
     # Fourier coefficients for the responses. Maybe there's something there?
-    m.fft_coeffs = np.fft.rfft(m.dir_response, axis=Mouse.TimeAxis, n=FFT_WIDTH)
-    m.avg_fft_coeffs = np.mean(m.fft_coeffs, axis=Mouse.TrialAxis)
+    m.fft_coeffs = np.fft.rfft(m.dir_response, axis=Response.TimeAxis, n=FFT_WIDTH)
+    m.avg_fft_coeffs = np.mean(m.fft_coeffs, axis=Response.TrialAxis)
     m.freqs = np.fft.rfftfreq(FFT_WIDTH, 1.0 / SAMPLING_RATE)
 
     # Hierarchical agglomerative clustering.
-    avg_response_timeseries = np.mean(m.ori_response, axis=(Mouse.TrialAxis))
+    avg_response_timeseries = np.mean(m.ori_response, axis=(Response.TrialAxis))
     dists = [(pdist(i.T, 'correlation') / 2.0).clip(0.0, 1.0)
              for i in avg_response_timeseries]
     linkages = [hac.linkage(dist, method='single', metric='correlation')
@@ -206,7 +117,7 @@ for index, m in enumerate(mice_data):
                       for i, idxs in enumerate(m.hac_idxs)])
     m.hac_ori_response_corr = \
             np.array([np.corrcoef(np.mean(m.hac_ori_response,
-                                          axis=Mouse.TrialAxis)[i,:,:].T)
+                                          axis=Response.TrialAxis)[i,:,:].T)
                       for i in range(len(ORIENTATIONS))])
 
     if PLOTTING_AVERAGE_RESPONSE:
@@ -252,7 +163,7 @@ for index, m in enumerate(mice_data):
             cols = 3
 
             fig = plt.figure(figsize=(cols * 5,rows * 5))
-            fig.suptitle('Mouse %c - %.1f degrees' %(name,dirn))
+            fig.suptitle('Response %c - %.1f degrees' %(name,dirn))
                     
             # OSI values when sorting neurons by that value.
             sp = fig.add_subplot(rows, cols, 1)
@@ -382,7 +293,7 @@ for index, m in enumerate(mice_data):
             # Store the orientation tuning curve along with the fit.
             fig, ax = plt.subplots()
             fig.set_size_inches(15, 8)
-            fig.suptitle('Mouse %c Neuron %d orientation-tuning curve'
+            fig.suptitle('Response %c Neuron %d orientation-tuning curve'
                          ' (R-squared %.2f)'
                          % (name, i, m.dg_fit_r2[i]))
             plt.xlabel('Stimulus')
@@ -409,7 +320,7 @@ for index, m in enumerate(mice_data):
                     color='r', linewidth=3)
             ax.set_rmax(0.5)
             ax.grid(True)
-            ax.set_title('Mouse %c Neuron %d orientation responses' \
+            ax.set_title('Response %c Neuron %d orientation responses' \
                          % (MICE_NAMES[index], i))
 
             fig.savefig(os.path.join(PLOTS_DIR, 'OSI/CirVecs-%c_%d.eps'
@@ -457,7 +368,7 @@ for index, m in enumerate(mice_data):
                 cols = 2
 
                 fig = plt.figure(figsize=(cols * 5,rows * 5))
-                fig.suptitle('Mouse %c Neuron %d - %.1f degrees' %(name,i,dirn))
+                fig.suptitle('Response %c Neuron %d - %.1f degrees' %(name,i,dirn))
                     
                 # Plot responses for this particular direction.
                 sp = fig.add_subplot(rows, cols, 1)
