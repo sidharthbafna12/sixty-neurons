@@ -26,6 +26,8 @@ STIMULUS_LENGTH = TOTAL_NUM_SAMPLES / NUM_STIMULUS_PRESENTATIONS
 # FFT_WIDTH = SAMPLING_RATE * TRIAL_DURATION
 FFT_WIDTH = 64
 
+N_FLAT_CLUSTERS = 3
+
 DATA_DIR = 'data/SharedNeuralData'
 DATA_LOCS = [os.path.join(DATA_DIR, 'Mouse-%c/Data-Mouse%c.mat' % (c, c))
              for c in MICE_NAMES]
