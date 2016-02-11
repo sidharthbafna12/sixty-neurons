@@ -22,7 +22,7 @@ data = map(lambda L: Response(sio.loadmat(L, struct_as_record=False,
 
 for index, m in enumerate(data):
     name = MICE_NAMES[index]
-    print 'Response %c' % name
+    print 'Mouse %c' % name
 
     # Correlation matrix
     m.corr_ori = np.array([np.corrcoef(np.mean(m.response_ori,

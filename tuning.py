@@ -27,7 +27,7 @@ sigma0 = 2 * np.pi / len(DIRECTIONS) # initial tuning curve width
 
 for index, m in enumerate(data):
     name = MICE_NAMES[index]
-    print 'Response %c' % name
+    print 'Mouse %c' % name
 
     # Get average response over all trials, time
     m.avg_response_dir = np.mean(m.response_dir, axis=(Response.TrialAxis,

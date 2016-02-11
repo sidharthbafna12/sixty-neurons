@@ -19,7 +19,7 @@ dirs_rad = np.radians(DIRECTIONS)
 
 for index, m in enumerate(data):
     name = MICE_NAMES[index]
-    print 'Response %c' % name
+    print 'Mouse %c' % name
 
     # Fourier coefficients for the responses.
     m.fft_coeffs= np.fft.rfft(m.response_ori,axis=Response.TimeAxis,n=FFT_WIDTH)
