@@ -1,5 +1,5 @@
 import numpy as np
-from params import *
+from params.stimulus_params import *
 from response import Response
 
 def _pref_dir_vector(R, orientation_flag=True):

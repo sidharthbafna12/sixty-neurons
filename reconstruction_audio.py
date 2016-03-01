@@ -6,7 +6,9 @@
 """
 
 # Experiment/plotting/other parameters
-from src.params import *
+from src.params.stimulus_params import *
+from src.params.datafile_params import *
+from src.params.timit_params import *
 
 # Basics
 import numpy as np
@@ -18,104 +20,34 @@ import glob
 from scikits.audiolab import Sndfile, play
 from src.response import Response
 
-# Defining the Mel filterbank to use for the magnitude spectrogram
-def mel(f):
-    return 1125.0 * np.log(1 + f/700.0)
-
-def melinv(m):
-    return 700 * (np.exp(m/1125.0) - 1.0)
-
-maxF = TIMIT_SAMPLERATE / 2
-mel_filterbank = np.zeros((TIMIT_N_FFT / 2 + 1, N_MEL))
-melFreqs = np.linspace(0, mel(maxF), num=N_MEL)
-freqs = np.linspace(0, maxF, num = TIMIT_N_FFT/2 + 1)
-
-for i, mf in enumerate(melFreqs):
-    f0 = melinv(mf)
-    if i > 0:
-        fL = melinv(melFreqs[i-1])
-    else:
-        fL = f0
-    if i < N_MEL - 1:
-        fR = melinv(melFreqs[i+1])
-    else:
-        fR = f0
-
-    height = 2 / (fR - fL)
-
-    for j, f in enumerate(freqs):
-        if f < fL:
-            continue
-        elif f >= fL and f < f0:
-            mel_filterbank[j,i] = height * (f - fL) / (f0 - fL)
-        elif f >= f0 and f < fR:
-            mel_filterbank[j,i] = height * (fR - f) / (fR - f0)
-        else:
-            continue
+# Definitions of spectrograms, STRFs
+from src.spectrogram import fourier_spectrogram, mel_spectrogram
+from src.strf import STRF
 
 mag_data = []
-mag_data_means = []
 phase_data = []
 window = np.hamming(TIMIT_L)
 
-for f in glob.glob('timit/**/*.wav'):
+for f in glob.glob('data/timit/**/*.wav'):
     print 'Reading %s' % f
     sf = Sndfile(f, 'r')
     n = sf.nframes
     signal = sf.read_frames(n)
-    signal = np.pad(signal, (0, TIMIT_L - signal.shape[0] % TIMIT_L),
-                    mode='constant')
-    windows = np.array([signal[i:i+TIMIT_L] * window
-                        for i in range(0, n - n % TIMIT_L + 1, TIMIT_STEP)])
-    fourier_coeffs = np.fft.rfft(windows, n=TIMIT_N_FFT, axis=1)
-    phase_spectrogram = np.angle(fourier_coeffs.T)
-    # Not taking power (square) because it seems to wipe out the lower values
-    mag_spectrogram = np.absolute(np.dot(fourier_coeffs, mel_filterbank)).T
-
-    mag_means = mag_spectrogram.mean(axis=0, keepdims=True)
-    mag_spectrogram -= mag_means
-    
-    mag_data_means.append(mag_means)
+    mag_spectrogram = mel_spectrogram(signal,window,N_MEL,10.0,7500.0,8000.0,
+                                      TIMIT_N_FFT, TIMIT_L, TIMIT_STEP)
     mag_data.append(mag_spectrogram)
-    phase_data.append(phase_spectrogram)
+    # phase_data.append(phase_spectrogram)
 
 # Creating some STRFs
-# Shape taken from
-# 'Spectro-Temporal Response Field Characterization with Dynamic Ripples in
-# Ferret Primary Auditory Cortex' - Depireux, Simon et al (2000)
-
-# Spread preferred frequencies randomly.
 n_neurons = 10
+# Spread preferred frequencies randomly.
 pref_freq_idxs = np.random.randint(3, N_MEL - 3, n_neurons)
 # Spread preferred delays randomly as well.
 max_delay = 5
 pref_delay_idxs = np.random.randint(0, max_delay - 2, n_neurons)
-# STRF matrices.
-n_freqs = mag_data[0].shape[0]
-STRFs = np.zeros((n_freqs, max_delay, n_neurons))
+STRFs = np.zeros((N_MEL, max_delay, n_neurons))
 for i in range(n_neurons):
-    f, d = pref_freq_idxs[i], pref_delay_idxs[i]
-
-    # Centre-surround RF at given delay
-    STRFs[f-1:f+2,d,i] = 1
-    STRFs[f-2,d,i] = 0
-    STRFs[f+2,d,i] = 0
-
-    # Centre-surround RF at given frequency band
-    if d > 0:
-        STRFs[f-1:f+2,d-1,i] = -0.5
-    if d < max_delay - 1:
-        STRFs[f-1:f+2,d+1,i] = -1
-        STRFs[f-2,d+1,i] = 0.5
-        STRFs[f+2,d+1,i] = 0.5
-        STRFs[f-3,d+1,i] = -0.5
-        STRFs[f+3,d+1,i] = -0.5
-    if d < max_delay - 2:
-        STRFs[f-1:f+2,d+2,i] = 0.5
-        STRFs[f-2,d+2,i] = -0.5
-        STRFs[f+2,d+2,i] = -0.5
-    if d < max_delay - 3:
-        STRFs[f-1:f+2,d+3,i] = -0.5
+    STRFs[:,:,i] = STRF(N_MEL, max_delay)
 
 # LNP neurons considered here.
 # Linear stage involves convolving the STRF with the stimulus.

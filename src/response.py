@@ -1,6 +1,6 @@
 import numpy as np
 
-from params import *
+from params.stimulus_params import *
 
 class Response:
     """ Data matrix convention for multiple trials:
@@ -23,6 +23,17 @@ class Response:
         self.struct = struct
         self.response = struct.Spks
         self.N = self.response.shape[0] # number of neurons
+
+        # Something hacky:
+        # The stimuli are preceded by a gray screen. The responses recorded in
+        # that time should be the decaying responses to the preceding stimulus,
+        # of course. So perhaps it will be useful later to organise the slices
+        # that way, that is, to have the succeeding 4s gray screen be part of
+        # the slice rather than the preceding one.
+        # To do this, maybe I can just cyclic shift the responses for now, so
+        # that they align properly...
+        # The response to the stimulus is in the first 40 elements now though.
+        self.response = np.roll(self.response,-SAMPLING_RATE * GRAY_SCREEN_TIME)
         self.slices = np.split(self.response, NUM_STIMULUS_PRESENTATIONS,
                                axis=1) # N-by-STIM_LEN slices.
 
@@ -31,14 +42,14 @@ class Response:
         # For 16 stimuli
         # So (16, 10, 40, N)-shaped array.
         self.response_dir \
-                = np.array([[sl[:,GRAY_SCREEN_TIME * SAMPLING_RATE:].T
+                = np.array([[sl[:,:GRATING_DURATION * SAMPLING_RATE].T
                              for (index, sl) in enumerate(self.slices)
                              if struct.StimSeq[index] == stimulus]
                             for stimulus in sorted(DIRECTIONS)])
 
-        # The response during the preceding gray screen stimulus
+        # The response during the succeeding gray screen stimulus
         self.bg_dir \
-                = np.array([[sl[:,:GRAY_SCREEN_TIME * SAMPLING_RATE].T
+                = np.array([[sl[:,GRATING_DURATION * SAMPLING_RATE:].T
                              for (index, sl) in enumerate(self.slices)
                              if struct.StimSeq[index] == stimulus]
                             for stimulus in sorted(DIRECTIONS)])

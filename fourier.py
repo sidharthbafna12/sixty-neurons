@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 # Experiment/plotting/other parameters
-from src.params import *
+from src.params.datafile_params import *
+from src.params.stimulus_params import *
 
 # Basics, plus for FFT
 import numpy as np

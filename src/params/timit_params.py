@@ -1,0 +1,8 @@
+# Parameters used to simulate responses to TIMIT sentences.
+TIMIT_SAMPLERATE = 16000
+TIMIT_STEP = TIMIT_SAMPLERATE / SAMPLING_RATE
+TIMIT_L = TIMIT_SAMPLERATE / SAMPLING_RATE # length of single sample window
+TIMIT_N_FFT = 128
+TIMIT_FRAME_OVERLAP = TIMIT_L - TIMIT_STEP
+N_MEL = 24
+MAX_ACORR_LAG = 200e-3 # in secs
