@@ -1,6 +1,6 @@
 import numpy as np
 
-from params.stimulus_params import *
+from params.grating.stimulus_params import *
 
 class Response:
     """ Data matrix convention for multiple trials:

@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 # Experiment/plotting/other parameters
-from src.params.datafile_params import *
-from src.params.stimulus_params import *
+from src.params.grating.datafile_params import *
+from src.params.grating.stimulus_params import *
 
 # Basics
 import numpy as np
@@ -56,6 +56,9 @@ for index, m in enumerate(data):
     ############################################################################
     # Plotting
     # Average response
+    if not os.path.isdir(os.path.join(PLOTS_DIR,'OrientationTuning')):
+        os.makedirs(os.path.join(PLOTS_DIR, 'OrientationTuning'))
+
     rows = 1; cols = 2
     fig = plt.figure(figsize=(cols*7, rows*4))
     normalised_avg_rsp = m.avg_response_dir / np.sum(m.avg_response_dir, axis=0)

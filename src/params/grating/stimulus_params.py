@@ -21,9 +21,6 @@ TEMPORAL_FREQUENCY = 2.0 / SAMPLING_RATE #2.0 Hz -> (temporal) cycles per sample
 PHI_T = np.pi / 2 # grating phase shift in radians
 PHI_X = 0.0
 PHI_Y = 0.0
-FOV = np.array([50.0, 90.0]) # in y and x, in degrees
-N_PX = np.floor(FOV * PIXELS_PER_DEGREE).astype(int)
 
-# Response Fourier analysis parameters
-# FFT_WIDTH = SAMPLING_RATE * TRIAL_DURATION
-FFT_WIDTH = 64
+from pathway_params import FOV
+N_PX = np.ceil(FOV * PIXELS_PER_DEGREE).astype(int)
