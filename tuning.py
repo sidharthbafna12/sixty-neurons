@@ -9,17 +9,17 @@ import numpy as np
 from matplotlib import pyplot as plt
 import os, sys
 
-# Response tuning properties
+# GratingResponse tuning properties
 from src.double_gaussian_fit import wrapped_double_gaussian
 from src.double_gaussian_fit import fit_wrapped_double_gaussian
 from src.osi import selectivity_index, pref_direction
 
 # Reading in the data
 import scipy.io as sio
-from src.response import Response
+from src.grating_response import GratingResponse
 
-data = map(lambda L: Response(sio.loadmat(L, struct_as_record=False,
-                                          squeeze_me=True)['Data']),
+data = map(lambda L: GratingResponse(sio.loadmat(L, struct_as_record=False,
+                                                 squeeze_me=True)['Data']),
            DATA_LOCS)
 ori = map(lambda L:sio.loadmat(L,struct_as_record=False,squeeze_me=True)['Ori'],
           ORI_LOCS)
@@ -31,8 +31,8 @@ for index, m in enumerate(data):
     print 'Mouse %c' % name
 
     # Get average response over all trials, time
-    m.avg_response_dir = np.mean(m.response_dir, axis=(Response.TrialAxis,
-                                                       Response.TimeAxis))
+    m.avg_response_dir = np.mean(m.response_dir, axis=(GratingResponse.TrialAxis,
+                                                       GratingResponse.TimeAxis))
 
     # Obtain tuning curves
     init_thetas = [dirs_rad[np.argmax(m.avg_response_dir[:,i])] % np.pi
@@ -124,7 +124,7 @@ for index, m in enumerate(data):
         fig.suptitle('Mouse %c Neuron %d Orientation Tuning Curve '
                      '(R-squared %.2f)' % (name, i, m.dg_fit_r2[i]))
         plt.xlabel('Stimulus')
-        plt.ylabel('Average Response')
+        plt.ylabel('Average GratingResponse')
         plt.scatter(DIRECTIONS, m.avg_response_dir[:,i], label='recorded')
 
         dirs_rad_finer = np.linspace(np.min(dirs_rad),np.max(dirs_rad),num=200)

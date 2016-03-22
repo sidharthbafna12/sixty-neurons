@@ -16,9 +16,9 @@ screen = np.zeros(N_PX)
 
 # Reading in the data
 import scipy.io as sio
-from src.response import Response
-data = map(lambda L: Response(sio.loadmat(L, struct_as_record=False,
-                                          squeeze_me=True)['Data']),
+from src.grating_response import GratingResponse
+data = map(lambda L: GratingResponse(sio.loadmat(L, struct_as_record=False,
+                                                 squeeze_me=True)['Data']),
            GRATING_DATA_LOCS)
 
 # For stimulus movie

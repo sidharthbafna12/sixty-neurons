@@ -16,3 +16,6 @@ RGC_CELL_SPACING = 0.5
 RGC_N_CELLS = 1 + (FOV / RGC_CELL_SPACING).astype(int)
 
 RGC_P = 1.0 # p('on' centre) vs p('off' centre)
+
+V1_RF_WIDTH = 5.0 # degrees
+V1_GRID_SPACING = 5.0

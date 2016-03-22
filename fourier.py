@@ -12,10 +12,10 @@ import os, sys
 
 # Reading in the data
 import scipy.io as sio
-from src.response import Response
+from src.grating_response import GratingResponse
 
-data = map(lambda L: Response(sio.loadmat(L, struct_as_record=False,
-                                          squeeze_me=True)['Data']),
+data = map(lambda L: GratingResponse(sio.loadmat(L, struct_as_record=False,
+                                                 squeeze_me=True)['Data']),
            DATA_LOCS)
 dirs_rad = np.radians(DIRECTIONS)
 
@@ -24,9 +24,10 @@ for index, m in enumerate(data):
     print 'Mouse %c' % name
 
     # Fourier coefficients for the responses.
-    m.fft_coeffs= np.fft.rfft(m.response_ori,axis=Response.TimeAxis,n=FFT_WIDTH)
-    m.avg_fft_coeffs = np.mean(m.fft_coeffs, axis=Response.TrialAxis)
-    m.freqs = np.fft.rfftfreq(FFT_WIDTH, 1.0 / SAMPLING_RATE)
+    m.fft_coeffs= np.fft.rfft(m.response_ori,axis=GratingResponse.TimeAxis,
+                              n=FFT_WIDTH)
+    m.avg_fft_coeffs = np.mean(m.fft_coeffs, axis=GratingResponse.TrialAxis)
+    m.freqs = np.fft.rfftfreq(FFT_WIDTH, 1.0 / CA_SAMPLING_RATE)
     
     ############################################################################
     # Plotting

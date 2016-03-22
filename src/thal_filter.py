@@ -21,6 +21,6 @@ def matlab_style_gauss2D(shape=(3,3),sigma=0.5):
     return h
 
 def thalamus_filter(rsps):
-    T, L_Y, L_X = rsps.shape
+    L_Y, L_X, T = rsps.shape
     mask = matlab_style_gauss2D(shape=(L_Y,L_X), sigma=(L_X+L_Y)/6.)
-    return rsps * mask
+    return rsps * np.dstack([mask] * T)

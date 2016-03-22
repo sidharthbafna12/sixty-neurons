@@ -16,9 +16,9 @@ screen = np.zeros(N_PX)
 
 # Reading in the data
 import scipy.io as sio
-from src.response import Response
-data = map(lambda L: Response(sio.loadmat(L, struct_as_record=False,
-                                          squeeze_me=True)['Data']),
+from src.grating_response import GratingResponse
+data = map(lambda L: GratingResponse(sio.loadmat(L, struct_as_record=False,
+                                                 squeeze_me=True)['Data']),
            DATA_LOCS)
 
 # For stimulus movie
@@ -44,7 +44,8 @@ for index, m in enumerate(data):
     m.rgc_rf_types = np.random.choice(['on', 'off'],
                                       size=RGC_N_CELLS,
                                       p=[RGC_P, 1 - RGC_P]).T
-    m.rgc_filter = rgc_filter(m.rgc_rf_types)
+    m.rgc_filter = rgc_filter(m.rgc_rf_types, RGC_CENTRE_WIDTH, RGC_SURR_WIDTH,
+                              RGC_CELL_SPACING, PIXELS_PER_DEGREE, N_PX)
     
     for i, (dirn, tot_rsp) in enumerate(zip(stim_seq, responses)):
         rsp = tot_rsp[:GRATING_DURATION * SAMPLING_RATE]
@@ -53,33 +54,38 @@ for index, m in enumerate(data):
 
         print 'Computing RGC responses...'
         m.rgc_rsp = m.rgc_filter(grating)
-        # print 'Computing thalamic responses...'
-        # m.thal_rsp = thalamus_filter(m.rgc_rsp)
+        print 'Computing thalamic responses...'
+        m.thal_rsp = thalamus_filter(m.rgc_rsp)
 
-        if not os.path.isdir(os.path.join(PLOTS_DIR, 'GratingStimuli',
+        if not os.path.isdir(os.path.join(PLOTS_DIR, 'Construction',
                                           'Movies-%c'%name,'Movie-%d'%i)):
-            os.makedirs(os.path.join(PLOTS_DIR, 'GratingStimuli',
-                                     'Movies-%c' % name, 'Movie-%d' % i))
+            os.makedirs(os.path.join(PLOTS_DIR, 'Construction',
+                                     'Movies-%c' % name, 'Movie-%d' % i,
+                                     'Original'))
+            os.makedirs(os.path.join(PLOTS_DIR, 'Construction',
+                                     'Movies-%c' % name, 'Movie-%d' % i,
+                                     'RGC'))
+            os.makedirs(os.path.join(PLOTS_DIR, 'Construction',
+                                     'Movies-%c' % name, 'Movie-%d' % i,
+                                     'Saliency'))
         
         for j in range(L_stim):
             print '\tDumping frame %d' % j
             scipy.misc.toimage(grating[j,:,:], cmin=-1.0, cmax=1.0)\
-                      .save(os.path.join(PLOTS_DIR, 'GratingStimuli',
+                      .save(os.path.join(PLOTS_DIR, 'Construction',
                                          'Movies-%c' % name,
                                          'Movie-%d' % i,
+                                         'Original',
                                          '%d.png' % j))
-            scipy.misc.toimage(grating_diff[j,:,:], cmin=-1.0, cmax=1.0)\
-                      .save(os.path.join(PLOTS_DIR, 'GratingStimuli',
-                                         'Movies-%c' % name,
-                                         'Movie-%d' % i,
-                                         'diff_%d.png' % j))a
             scipy.misc.toimage(m.rgc_rsp[j,:,:])\
-                      .save(os.path.join(PLOTS_DIR, 'GratingStimuli',
+                      .save(os.path.join(PLOTS_DIR, 'Construction',
                                          'Movies-%c' % name,
                                          'Movie-%d' % i,
+                                         'RGC',
                                          'rgc_%d.png' % j))
             scipy.misc.toimage(m.thal_rsp[j,:,:])\
-                      .save(os.path.join(PLOTS_DIR, 'GratingStimuli',
+                      .save(os.path.join(PLOTS_DIR, 'Construction',
                                          'Movies-%c' % name,
                                          'Movie-%d' % i,
+                                         'Saliency',
                                          'thal_%d.png' % j))

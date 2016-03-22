@@ -2,7 +2,7 @@ import numpy as np
 
 from params.grating.stimulus_params import *
 
-class Response:
+class GratingResponse:
     """ Data matrix convention for multiple trials:
         (S,T,L,N)-sized matrix implies:
             - S stimuli
@@ -33,7 +33,7 @@ class Response:
         # To do this, maybe I can just cyclic shift the responses for now, so
         # that they align properly...
         # The response to the stimulus is in the first 40 elements now though.
-        self.response = np.roll(self.response,-SAMPLING_RATE * GRAY_SCREEN_TIME)
+        self.response= np.roll(self.response,-CA_SAMPLING_RATE*GRAY_SCREEN_TIME)
         self.slices = np.split(self.response, NUM_STIMULUS_PRESENTATIONS,
                                axis=1) # N-by-STIM_LEN slices.
 
@@ -42,14 +42,14 @@ class Response:
         # For 16 stimuli
         # So (16, 10, 40, N)-shaped array.
         self.response_dir \
-                = np.array([[sl[:,:GRATING_DURATION * SAMPLING_RATE].T
+                = np.array([[sl[:,:GRATING_DURATION * CA_SAMPLING_RATE].T
                              for (index, sl) in enumerate(self.slices)
                              if struct.StimSeq[index] == stimulus]
                             for stimulus in sorted(DIRECTIONS)])
 
         # The response during the succeeding gray screen stimulus
         self.bg_dir \
-                = np.array([[sl[:,GRATING_DURATION * SAMPLING_RATE:].T
+                = np.array([[sl[:,GRATING_DURATION * CA_SAMPLING_RATE:].T
                              for (index, sl) in enumerate(self.slices)
                              if struct.StimSeq[index] == stimulus]
                             for stimulus in sorted(DIRECTIONS)])

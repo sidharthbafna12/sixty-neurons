@@ -15,9 +15,9 @@ import scipy.cluster.hierarchy as hac
 
 # Reading in the data
 import scipy.io as sio
-from src.response import Response
+from src.grating_response import GratingResponse
 
-data = map(lambda L: Response(sio.loadmat(L, struct_as_record=False,
+data = map(lambda L: GratingResponse(sio.loadmat(L, struct_as_record=False,
                                           squeeze_me=True)['Data']),
            DATA_LOCS)
 
@@ -27,11 +27,12 @@ for index, m in enumerate(data):
 
     # Correlation matrix
     m.corr_ori = np.array([np.corrcoef(np.mean(m.response_ori,
-                                               axis=Response.TrialAxis)[i,:,:].T)
+                                               axis=1)[i,:,:].T)
                            for i in range(len(ORIENTATIONS))])
     
     # Hierarchical clustering to rearrange the correlation matrix.
-    avg_response_timeseries = np.mean(m.response_ori, axis=Response.TrialAxis)
+    avg_response_timeseries = np.mean(m.response_ori,
+                                      axis=GratingResponse.TrialAxis)
     dists = [(pdist(i.T, 'correlation') / 2.0).clip(0.0, 1.0)
              for i in avg_response_timeseries]
     m.linkages = [hac.linkage(dist, method='single', metric='correlation')
@@ -40,8 +41,9 @@ for index, m in enumerate(data):
     hac_response_ori = np.array([m.response_ori[i][:,:,idxs]
                                  for i, idxs in enumerate(m.hac_idxs)])
     m.corr_ori_hac = \
-            np.array([np.corrcoef(np.mean(hac_response_ori,
-                                          axis=Response.TrialAxis)[i,:,:].T)
+            np.array([np.corrcoef(\
+                        np.mean(hac_response_ori,
+                                axis=GratingResponse.TrialAxis)[i,:,:].T)
                       for i in range(len(ORIENTATIONS))])
 
     ############################################################################

@@ -18,7 +18,6 @@ import os, sys
 # Reading in the data
 import glob
 from scikits.audiolab import Sndfile, play
-from src.response import Response
 
 # Definitions of spectrograms, STRFs
 from src.spectrogram import fourier_spectrogram, mel_spectrogram
