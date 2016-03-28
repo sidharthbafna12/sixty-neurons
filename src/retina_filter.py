@@ -71,3 +71,36 @@ def rgc_filter(rf_types, stimulus_type):
         # return np.array(output_deltas)
         return np.dstack(output)
     return f
+
+def rgc_filter2(imgs):
+    from params.grating.pathway_params import RGC_CENTRE_WIDTH
+    from params.grating.pathway_params import RGC_SURR_WIDTH
+    from params.grating.stimulus_params import PIXELS_PER_DEGREE
+
+    import scipy.ndimage as ndi
+    
+    L = imgs.shape[2]
+    
+    imgs_deltas = np.dstack((imgs[:,:,0:1], np.diff(imgs, axis=2)))
+
+    Y1 = [ndi.filters.gaussian_filter(imgs[:,:,i],
+                                      PIXELS_PER_DEGREE * RGC_CENTRE_WIDTH,
+                                      mode='constant')
+          for i in range(L)]
+    Y2 = [ndi.filters.gaussian_filter(imgs[:,:,i],
+                                      PIXELS_PER_DEGREE * (RGC_CENTRE_WIDTH 
+                                                         + RGC_SURR_WIDTH),
+                                      mode='constant')
+          for i in range(L)]
+
+    Y1_d = [ndi.filters.gaussian_filter(imgs_deltas[:,:,i],
+                                        PIXELS_PER_DEGREE * RGC_CENTRE_WIDTH,
+                                        mode='constant')
+            for i in range(L)]
+    Y2_d = [ndi.filters.gaussian_filter(imgs_deltas[:,:,i],
+                                        PIXELS_PER_DEGREE * (RGC_CENTRE_WIDTH 
+                                                           + RGC_SURR_WIDTH),
+                                        mode='constant')
+            for i in range(L)]
+    return np.dstack([y1 + y1_d - y2 - y2_d
+                      for y1,y2,y1_d,y2_d in zip(Y1, Y2, Y1_d, Y2_d)])

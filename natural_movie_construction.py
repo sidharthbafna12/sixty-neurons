@@ -23,6 +23,7 @@ from scipy.signal import decimate, resample
 
 # Visual pathway filters
 from src.retina_filter import rgc_filter
+from src.retina_filter import rgc_filter2
 from src.thal_filter import thalamus_filter
 from src.v1_filter import v1_best_fit_filter
 
@@ -54,6 +55,7 @@ for i, p in enumerate(MOVIE_LOCS):
     movie = (movie - 128.0) / 128.0
     movies.append(movie)
 
+    """
     # Pass them through generic RGC filters.
     rgc_rf_types = np.random.choice(['on', 'off'],
                                     size=RGC_N_CELLS,
@@ -65,18 +67,20 @@ for i, p in enumerate(MOVIE_LOCS):
 
     rgc_rsps.append(rgc_rsp)
     thal_rsps.append(thal_rsp)
+    """
     
     if not os.path.isdir(os.path.join(PLOTS_DIR, 'Movie%d' % (i+1))):
         os.makedirs(os.path.join(PLOTS_DIR, 'Movie%d' % (i+1)))
         os.makedirs(os.path.join(PLOTS_DIR, 'Movie%d' % (i+1), 'Original'))
-        os.makedirs(os.path.join(PLOTS_DIR, 'Movie%d' % (i+1), 'RGC'))
-        os.makedirs(os.path.join(PLOTS_DIR, 'Movie%d' % (i+1), 'Saliency'))
+        # os.makedirs(os.path.join(PLOTS_DIR, 'Movie%d' % (i+1), 'RGC'))
+        # os.makedirs(os.path.join(PLOTS_DIR, 'Movie%d' % (i+1), 'Saliency'))
 
     for j in range(T):
         scipy.misc.toimage(movie[:,:,j]).save(os.path.join(PLOTS_DIR,
                                                            'Movie%d' % (i+1),
                                                            'Original',
                                                            'frame%03d.png' % j))
+        """
         scipy.misc.toimage(rgc_rsp[:,:,j])\
                   .save(os.path.join(PLOTS_DIR,
                                      'Movie%d' % (i+1),
@@ -87,7 +91,9 @@ for i, p in enumerate(MOVIE_LOCS):
                                      'Movie%d' % (i+1),
                                      'Saliency',
                                      'thal_%03d.png' % j))
+        """
 
+"""
 ################################################################################
 # Consider the recorded responses now.
 data = map(lambda p: scipy.io.loadmat(p,struct_as_record=False,squeeze_me=True)\
@@ -117,3 +123,4 @@ for i_exp, exp in enumerate(data):
     centres.append(centres_mov)
     coeffs.append(coeffs_mov)
     sses.append(sses_mov)
+"""

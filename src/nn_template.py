@@ -22,7 +22,7 @@ class GratingClusterTemplateNN:
     def fit(self, tr):
         avg = np.mean(tr, axis=GratingResponse.TrialAxis) # (16, 40, N)
         self.centroids, self.cluster_labels = [], []
-        for i in range(len(ORIENTATIONS)):
+        for i in range(len(DIRECTIONS)):
             rsps_i = avg[i,:,:].swapaxes(0,1)
             ce, la = scvq.kmeans2(rsps_i, GratingClusterTemplateNN.K,
                                   minit='points')

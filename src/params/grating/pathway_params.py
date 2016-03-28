@@ -6,8 +6,8 @@ import numpy as np
 FOV = np.array([96.0, 54.0]) # in x and y, in degrees
 
 # degrees of visual space
-RGC_CENTRE_WIDTH = 1.0
-RGC_SURR_WIDTH = 2.0
-RGC_CELL_SPACING = 1.0
+RGC_CENTRE_WIDTH = 0.5
+RGC_SURR_WIDTH = 1.0
+RGC_CELL_SPACING = 0.5
 
 RGC_P = 1.0 # p('on' centre) vs p('off' centre)

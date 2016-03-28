@@ -10,8 +10,12 @@ from matplotlib import pyplot as plt
 import os, sys
 
 # GratingResponse tuning properties
+"""
 from src.double_gaussian_fit import wrapped_double_gaussian
 from src.double_gaussian_fit import fit_wrapped_double_gaussian
+"""
+from src.double_gaussian_fit import wrapped_single_gaussian
+from src.double_gaussian_fit import fit_wrapped_single_gaussian
 from src.osi import selectivity_index, pref_direction
 
 # Reading in the data
@@ -42,8 +46,14 @@ for index, m in enumerate(data):
             - np.min(m.avg_response_dir, axis=0)
     init_sigmas = np.ones(m.N) * sigma0
     init_params = zip(init_thetas, init_sigmas, init_cs, init_ws)
+    """
     m.dg_fit_params, m.dg_fit_r2 = \
             zip(*[fit_wrapped_double_gaussian(dirs_rad, m.avg_response_dir[:,i],
+                                              p0 = init_params[i])
+                  for i in range(m.N)])
+    """
+    m.sg_fit_params, m.sg_fit_r2 = \
+            zip(*[fit_wrapped_single_gaussian(dirs_rad, m.avg_response_dir[:,i],
                                               p0 = init_params[i])
                   for i in range(m.N)])
 
@@ -56,8 +66,8 @@ for index, m in enumerate(data):
     ############################################################################
     # Plotting
     # Average response
-    if not os.path.isdir(os.path.join(PLOTS_DIR,'OrientationTuning')):
-        os.makedirs(os.path.join(PLOTS_DIR, 'OrientationTuning'))
+    if not os.path.isdir(os.path.join(PLOTS_DIR,'DirectionTuning')):
+        os.makedirs(os.path.join(PLOTS_DIR, 'DirectionTuning'))
 
     rows = 1; cols = 2
     fig = plt.figure(figsize=(cols*7, rows*4))
@@ -84,8 +94,8 @@ for index, m in enumerate(data):
     fig = plt.figure(figsize=(cols*5, rows*5))
 
     sp = fig.add_subplot(rows, cols, 1)
-    sp.set_title('Double Gaussian Quality of Fit (R^2)')
-    plt.plot(m.dg_fit_r2)
+    sp.set_title('Single Gaussian Quality of Fit (R^2)')
+    plt.plot(m.sg_fit_r2)
 
     sp = fig.add_subplot(rows, cols, 2)
     sp.set_title('OSI')
@@ -104,38 +114,38 @@ for index, m in enumerate(data):
     plt.plot(m.pref_direction)
 
     fig.savefig(os.path.join(PLOTS_DIR,
-                             'OrientationTuning/Selectivity-%c.eps' % name),
+                             'DirectionTuning/Selectivity-%c.eps' % name),
                 bbox_inches='tight')
     plt.close()
 
     # Tuning curves
-    if not os.path.isdir(os.path.join(PLOTS_DIR, 'OrientationTuning',
+    if not os.path.isdir(os.path.join(PLOTS_DIR, 'DirectionTuning',
                                       'TuningCurves-%c' % name)):
-        os.makedirs(os.path.join(PLOTS_DIR, 'OrientationTuning',
+        os.makedirs(os.path.join(PLOTS_DIR, 'DirectionTuning',
                                  'TuningCurves-%c' % name))
-    if not os.path.isdir(os.path.join(PLOTS_DIR, 'OrientationTuning',
+    if not os.path.isdir(os.path.join(PLOTS_DIR, 'DirectionTuning',
                                       'CirVecs-%c' % name)):
-        os.makedirs(os.path.join(PLOTS_DIR, 'OrientationTuning',
+        os.makedirs(os.path.join(PLOTS_DIR, 'DirectionTuning',
                                  'CirVecs-%c' % name))
 
     for i in range(m.N):
         fig, ax = plt.subplots()
         fig.set_size_inches(15, 8)
         fig.suptitle('Mouse %c Neuron %d Orientation Tuning Curve '
-                     '(R-squared %.2f)' % (name, i, m.dg_fit_r2[i]))
+                     '(R-squared %.2f)' % (name, i, m.sg_fit_r2[i]))
         plt.xlabel('Stimulus')
         plt.ylabel('Average GratingResponse')
         plt.scatter(DIRECTIONS, m.avg_response_dir[:,i], label='recorded')
 
         dirs_rad_finer = np.linspace(np.min(dirs_rad),np.max(dirs_rad),num=200)
         plt.plot(np.degrees(dirs_rad_finer),
-                 wrapped_double_gaussian(dirs_rad_finer, *m.dg_fit_params[i]),
+                 wrapped_single_gaussian(dirs_rad_finer, *m.sg_fit_params[i]),
                  label='double Gaussian fit')
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         fig.savefig(os.path.join(PLOTS_DIR,
-                                 'OrientationTuning/TuningCurves-%c/OT-%c_%d.eps'
+                                 'DirectionTuning/TuningCurves-%c/OT-%c_%d.eps'
                                  % (name, name, i)),
                     bbox_inches='tight')
         plt.close()
@@ -152,7 +162,7 @@ for index, m in enumerate(data):
                      % (name, i))
 
         fig.savefig(os.path.join(PLOTS_DIR,
-                                 'OrientationTuning/CirVecs-%c/Vecs-%c_%d.eps'
+                                 'DirectionTuning/CirVecs-%c/Vecs-%c_%d.eps'
                                  % (name,name,i)),
                     bbox_inches='tight')
         plt.close()

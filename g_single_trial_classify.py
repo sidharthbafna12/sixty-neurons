@@ -45,7 +45,7 @@ def loss_fn_matrix(L):
     return scipy.linalg.circulant(loss_fn_values)
     
 def conf_mat_badness(mat):
-    L = 8
+    L = len(DIRECTIONS)
     assert mat.shape == (L, L)
     
     loss_fn_mask = loss_fn_matrix(L)
@@ -77,8 +77,8 @@ for index, m in enumerate(data):
                   for i in range(m.N)])
 
     # Separate train data to train any classifier.
-    m.train = m.response_ori[:,:n_trials_train,:,:]
-    m.test = m.response_ori[:,n_trials_train:,:,:]
+    m.train = m.response_dir[:,:n_trials_train,:,:]
+    m.test = m.response_dir[:,n_trials_train:,:,:]
 
     m.models = []
     m.predicted_labels = []
@@ -88,9 +88,9 @@ for index, m in enumerate(data):
         c.fit(m.train)
         m.models.append(c)
 
-    correct_dir = np.repeat(np.arange(len(ORIENTATIONS)),
+    correct_dir = np.repeat(np.arange(len(DIRECTIONS)),
                             NUM_TRIALS - n_trials_train)\
-                    .reshape((len(ORIENTATIONS),
+                    .reshape((len(DIRECTIONS),
                               NUM_TRIALS - n_trials_train))
     for i_c, c in enumerate(m.models):
         pred = c.predict(m.test)
@@ -112,7 +112,7 @@ for index, m in enumerate(data):
             plt.imshow(conf_mats[i_n], cmap='gray', interpolation='none')
             plt.colorbar()
             fig.savefig(os.path.join(PLOTS_DIR,
-                                     'STClassify/Model%d-%c/ConfMat_%d.eps' \
+                                     'STClassify/Model%d-%c/ConfMat_%d.png' \
                                              % (i_c, name, i_n)),
                         bbox_inches='tight')
             plt.close()

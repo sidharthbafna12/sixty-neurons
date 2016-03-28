@@ -14,7 +14,10 @@ TOTAL_NUM_SAMPLES = CA_SAMPLING_RATE * (GRAY_SCREEN_TIME + GRATING_DURATION) \
 NUM_STIMULUS_PRESENTATIONS = NUM_TRIALS * len(DIRECTIONS)
 STIMULUS_LENGTH = TOTAL_NUM_SAMPLES / NUM_STIMULUS_PRESENTATIONS
 
-PIXELS_PER_DEGREE = 21.3 # 1 degree of visual space ~ 21.3 pixels on the screen
+# TODO : Remove this later.
+PIXELS_PER_DEGREE = 2.0 # 1 degree of visual space ~ 21.3 pixels on the screen
+
+# PIXELS_PER_DEGREE = 21.3 # 1 degree of visual space ~ 21.3 pixels on the screen
 CPD = 0.03 # cycles per degree
 SPATIAL_FREQUENCY = CPD / PIXELS_PER_DEGREE # cycles per pixel
 TEMPORAL_FREQUENCY = 2.0 / CA_SAMPLING_RATE #2.0Hz->(temporal) cycles per sample

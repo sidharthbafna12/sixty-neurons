@@ -9,7 +9,30 @@ from scipy.optimize import curve_fit
         y = c + w * (exp(-d1 * 0.5 / sigma**2) + exp(-d2 * 0.5 / sigma**2))
     where d1 and d2 are the (wrapped) distances from the centres.
 """
-def wrapped_distance(x, theta, sigma, c, w):
+def wrapped_distance_1(x, theta):
+    dL = np.abs(x - theta)
+    dR = 2 * np.pi - dL
+    return np.minimum(dL, dR)
+
+def wrapped_single_gaussian(x, theta, sigma, c, w):
+    d = wrapped_distance_1(x, theta)
+    return c + w * np.exp(-0.5 * (d ** 2) / (sigma ** 2))
+
+def fit_wrapped_single_gaussian(x, y, p0=None):
+    try:
+        ps = curve_fit(wrapped_single_gaussian, x, y, p0=p0)
+    except RuntimeError:
+        ps = (p0, None)
+
+    # Calculate R2 value
+    ss_tot = np.sum((y - y.mean()) ** 2)
+    yhat = wrapped_single_gaussian(x, *ps[0])
+    ss_res = np.sum((yhat - y) ** 2)
+    r2 = 1.0 - ss_res / ss_tot
+
+    return ps[0], r2
+
+def wrapped_distance_2(x, theta):
     dL = np.abs(x - theta)
     dR = 2 * np.pi - dL
     d1 = np.minimum(dL, dR)
@@ -17,7 +40,7 @@ def wrapped_distance(x, theta, sigma, c, w):
     return np.minimum(d1, d2)
     
 def wrapped_double_gaussian(x, theta, sigma, c, w):
-    d = wrapped_distance(x, theta, sigma, c, w)
+    d = wrapped_distance_2(x, theta)
     return c + w * np.exp(-0.5 * (d ** 2) / (sigma ** 2))
 
 def fit_wrapped_double_gaussian(x, y, p0=None):
@@ -25,8 +48,6 @@ def fit_wrapped_double_gaussian(x, y, p0=None):
         ps = curve_fit(wrapped_double_gaussian, x, y, p0=p0)
     except RuntimeError:
         ps = (p0, None)
-
-    yhat = wrapped_double_gaussian(x, *ps[0])
 
     # Calculate R2 value
     ss_tot = np.sum((y - y.mean()) ** 2)
