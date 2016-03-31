@@ -11,4 +11,4 @@ DATA_LOCS = [os.path.join(DATA_DIR,
 ORI_LOCS = [os.path.join(DATA_DIR,
                          'Mouse-%c/Solutions/Ori.mat' % c)
             for c in MICE_NAMES]
-PLOTS_DIR = 'plots/Grating'
+PLOTS_DIR = 'plots/grating'

@@ -1,21 +1,16 @@
 import numpy as np
 from scipy.optimize import curve_fit
 
+""" Wrapped single Gaussian
+    Distance wraps around 2pi, that's all.
 """
-    Assume the function to be a double-wrapped Gaussian with peaks 180 degrees
-    apart. Also, the spread of the two lobes is assumed to be the same, as are
-    the peaks.
-    So the function becomes:
-        y = c + w * (exp(-d1 * 0.5 / sigma**2) + exp(-d2 * 0.5 / sigma**2))
-    where d1 and d2 are the (wrapped) distances from the centres.
-"""
-def wrapped_distance_1(x, theta):
+def _wrapped_distance_1(x, theta):
     dL = np.abs(x - theta)
     dR = 2 * np.pi - dL
     return np.minimum(dL, dR)
 
 def wrapped_single_gaussian(x, theta, sigma, c, w):
-    d = wrapped_distance_1(x, theta)
+    d = _wrapped_distance_1(x, theta)
     return c + w * np.exp(-0.5 * (d ** 2) / (sigma ** 2))
 
 def fit_wrapped_single_gaussian(x, y, p0=None):
@@ -32,7 +27,12 @@ def fit_wrapped_single_gaussian(x, y, p0=None):
 
     return ps[0], r2
 
-def wrapped_distance_2(x, theta):
+"""
+    Assume the function to be a double-wrapped Gaussian with peaks 180 degrees
+    apart. Also, the spread of the two lobes is assumed to be the same, as are
+    the peaks.
+"""
+def _wrapped_distance_2(x, theta):
     dL = np.abs(x - theta)
     dR = 2 * np.pi - dL
     d1 = np.minimum(dL, dR)
@@ -40,7 +40,7 @@ def wrapped_distance_2(x, theta):
     return np.minimum(d1, d2)
     
 def wrapped_double_gaussian(x, theta, sigma, c, w):
-    d = wrapped_distance_2(x, theta)
+    d = _wrapped_distance_2(x, theta)
     return c + w * np.exp(-0.5 * (d ** 2) / (sigma ** 2))
 
 def fit_wrapped_double_gaussian(x, y, p0=None):

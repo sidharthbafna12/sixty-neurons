@@ -60,7 +60,7 @@ for i_m, m in enumerate(data):
                              'Reconstruction/STA/Mouse%d/BaseSTA.png'%i_m),
                 bbox_inches='tight')
     plt.close()
-
+    
     for i_n in range(m.N):
         print 'Neuron %d' % i_n
         sta = np.zeros((LY,LX,NSTA))
@@ -85,10 +85,8 @@ for i_m, m in enumerate(data):
         for i_l in range(1, NSTA+1):
             sp = fig.add_subplot(rows, cols, i_l)
             img, b_img = sta[:,:,i_l-1], baseline_sta[:,:,i_l-1]
-            """
-            proj = np.sum(img * b_img) / np.sum(b_img * b_img)
-            img -= proj * b_img
-            """
+            # proj = np.sum(img * b_img) / np.sum(b_img * b_img)
+            # img -= proj * b_img
             plt.imshow(img, cmap='gray', interpolation='none')
             plt.colorbar(orientation='horizontal', ticks=[img.min(), img.max()])
             plt.axis('off')

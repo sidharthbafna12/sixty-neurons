@@ -73,7 +73,7 @@ for i_exp, exp in enumerate(data):
     N, T, _ = exp.MT_nat[0].shape
 
     # Baseline STA (constant firing rate)
-    baseline_sta = np.zeros((LY, LX, NSTA))
+    baseline_sta = np.ones((LY, LX, NSTA))
     for i_m in range(M):
         movie = movies[i_m]
         p_movie = np.pad(movie, ((0,0),(0,0),(NSTA-1,0)), mode='constant')
@@ -121,10 +121,8 @@ for i_exp, exp in enumerate(data):
         for i_l in range(1, NSTA+1):
             sp = fig.add_subplot(rows, cols, i_l)
             img, b_img = sta[:,:,i_l-1], baseline_sta[:,:,i_l-1]
-            """
-            proj = np.sum(img * b_img) / np.sum(b_img * b_img)
-            img -= proj * b_img
-            """
+            # proj = np.sum(img * b_img) / np.sum(b_img * b_img)
+            # img -= proj * b_img
             plt.imshow(img, cmap='gray', interpolation='none')
             plt.colorbar(orientation='horizontal', ticks=[img.min(), img.max()])
             plt.axis('off')

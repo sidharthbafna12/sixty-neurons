@@ -11,9 +11,9 @@ import os, sys
 import scipy
 
 # GratingResponse tuning properties
-from src.double_gaussian_fit import wrapped_double_gaussian
-from src.double_gaussian_fit import fit_wrapped_double_gaussian
-from src.osi import selectivity_index, pref_direction
+from src.gaussian_fit import wrapped_double_gaussian
+from src.gaussian_fit import fit_wrapped_double_gaussian
+from src.osi import selectivity_index
 
 # Reading in the data
 import scipy.io as sio
@@ -30,9 +30,6 @@ data = map(lambda L : GratingResponse(sio.loadmat(L, struct_as_record=False,
            DATA_LOCS)
 
 n_trials_train = 3
-train_data = map(lambda R : R.response_dir[:,:n_trials_train,:,:], data)
-test_data = map(lambda R : R.response_dir[:,n_trials_train:,:,:], data)
-
 classifiers = [GratingClusterTemplateNN()]
 
 # Custom loss function total for a confusion matrix. Considers circularity of
@@ -45,7 +42,7 @@ def loss_fn_matrix(L):
     return scipy.linalg.circulant(loss_fn_values)
     
 def conf_mat_badness(mat):
-    L = len(DIRECTIONS)
+    L = len(ORIENTATIONS)
     assert mat.shape == (L, L)
     
     loss_fn_mask = loss_fn_matrix(L)
@@ -77,8 +74,8 @@ for index, m in enumerate(data):
                   for i in range(m.N)])
 
     # Separate train data to train any classifier.
-    m.train = m.response_dir[:,:n_trials_train,:,:]
-    m.test = m.response_dir[:,n_trials_train:,:,:]
+    m.train = m.response_ori[:,:n_trials_train,:,:]
+    m.test = m.response_ori[:,n_trials_train:,:,:]
 
     m.models = []
     m.predicted_labels = []
@@ -88,9 +85,9 @@ for index, m in enumerate(data):
         c.fit(m.train)
         m.models.append(c)
 
-    correct_dir = np.repeat(np.arange(len(DIRECTIONS)),
+    correct_dir = np.repeat(np.arange(len(ORIENTATIONS)),
                             NUM_TRIALS - n_trials_train)\
-                    .reshape((len(DIRECTIONS),
+                    .reshape((len(ORIENTATIONS),
                               NUM_TRIALS - n_trials_train))
     for i_c, c in enumerate(m.models):
         pred = c.predict(m.test)

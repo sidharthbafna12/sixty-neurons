@@ -16,4 +16,4 @@ RSP_DIRS = [os.path.join(RSP_BASE_DIR, d, exp_no) for d in EXP_DATES
             for exp_no in os.listdir(os.path.join(RSP_BASE_DIR, d))
             if exp_no in ['1', '2', '3', '4', '5']] # exp_no is a number
 RSP_LOCS = [os.path.join(p, 'AmpMov.mat') for p in RSP_DIRS]
-PLOTS_DIR = 'plots/NaturalMovies'
+PLOTS_DIR = 'plots/natural-movies'

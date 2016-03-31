@@ -6,6 +6,7 @@ from params.grating.stimulus_params import *
 
 # Basics
 import numpy as np
+from scipy.stats import mode
 
 # Clustering
 import scipy.cluster.vq as scvq
@@ -14,18 +15,25 @@ import scipy.cluster.vq as scvq
 from grating_response import GratingResponse
 
 class GratingClusterTemplateNN:
-    K = 3
+    K = 10
 
     def __init__(self):
         pass
 
     def fit(self, tr):
-        avg = np.mean(tr, axis=GratingResponse.TrialAxis) # (16, 40, N)
+        T = GRATING_DURATION * CA_SAMPLING_RATE
+        N = tr.shape[3]
+        N_tr = tr.shape[1]
+        # rsps = np.mean(tr, axis=GratingResponse.TrialAxis) # (16, 40, N)
+        rsps = tr.swapaxes(1,3).swapaxes(1,2)\
+                 .reshape((len(ORIENTATIONS),T,N_tr*N))
         self.centroids, self.cluster_labels = [], []
-        for i in range(len(DIRECTIONS)):
-            rsps_i = avg[i,:,:].swapaxes(0,1)
+        for i in range(len(ORIENTATIONS)):
+            rsps_i = rsps[i,:,:].swapaxes(0,1)
             ce, la = scvq.kmeans2(rsps_i, GratingClusterTemplateNN.K,
                                   minit='points')
+            la = [int(mode(la[n:n+N_tr])[0][0])
+                  for n in range(0,N_tr*N,N_tr)]
             self.centroids.append(ce)
             self.cluster_labels.append(la)
         self.templates = np.array(self.centroids)
