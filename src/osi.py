@@ -3,22 +3,22 @@ from params.grating.stimulus_params import *
 from response import Response
 
 def _pref_dir_vector(R, orientation_flag=True):
-    """ Incoming R is of the shape (8/16, 10, 40, N).
-                                     S    Tr  Ti  N
-                                        Trials Time
+    """ Incoming R is of the shape (8/16, N, 40, 10).
+                                     S    N  Ti  Tr
+                                            Time Trials
         8 if orientation_flag is set, otherwise 16.
         Calculate orientation/direction sensitivity.
     """
     if orientation_flag:
-        assert R.shape[Response.DirAxis] == len(ORIENTATIONS)
+        assert R.shape[0] == len(ORIENTATIONS)
         # In this space, the basis vector opposite you corresponds to the one
         # at 90 degrees in the stimulus space.
         basis = np.exp(2j * np.radians(ORIENTATIONS))
     else:
-        assert R.shape[Response.DirAxis] == len(DIRECTIONS)
+        assert R.shape[0] == len(DIRECTIONS)
         basis = np.exp(1j * np.radians(DIRECTIONS))
 
-    R_avgd = np.mean(R, axis=(Response.TrialAxis, Response.TimeAxis))
+    R_avgd = np.mean(R, axis=(2, 3))
     
     dir_vecs = np.dot(basis, R_avgd) / np.sum(R_avgd, axis=0)
     return dir_vecs

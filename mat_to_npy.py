@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+""" mat_to_npy.py
+    Reads in the V1 response data stored as .mat structs of different forms and
+    collects them into a single fixed NumPy array format
+        (S, N, L, R) : (Stimulus index, Neuron index, Time index, Trial index)
+"""
 
 import os
 import numpy as np
@@ -9,8 +14,11 @@ from src.params.grating.stimulus_params import *
 ################################################################################
 # Reading the grating dataset first.
 print 'Reading the grating dataset...'
-MAT_DATA_DIR = 'data/grating-mat/'
+MAT_DATA_DIR = 'data/original-data/grating-mat/'
 NPY_DATA_DIR = 'data/grating-npy/'
+if not os.path.isdir(NPY_DATA_DIR):
+    os.makedirs(NPY_DATA_DIR)
+
 G_NAMES_1 = ['A', 'B', 'C', 'D', 'E'] # Data struct is a bit different.
 G_NAMES_2 = ['F', 'G1', 'G2', 'G3', 'H', 'I', 'J', 'K']
 
@@ -65,8 +73,10 @@ for name, data in zip(G_NAMES_2, data_2):
 ################################################################################
 # Now the natural movies dataset.
 print 'Reading the natural movies dataset...'
-MAT_DATA_DIR = 'data/natural-mat/'
+MAT_DATA_DIR = 'data/original-data/natural-mat/'
 NPY_DATA_DIR = 'data/natural-npy/'
+if not os.path.isdir(NPY_DATA_DIR):
+    os.makedirs(NPY_DATA_DIR)
 
 N_NAMES = ['B', 'D', 'E', 'F', 'G2', 'G3', 'I']
 f_names = [os.path.join(MAT_DATA_DIR, n + '.mat') for n in N_NAMES]
@@ -87,12 +97,16 @@ for name, d in zip(N_NAMES, data):
 print 'Reading the second natural movie dataset...'
 import re
 date_pattern = re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2}')
-exp_dates = [name for name in os.listdir('data/data-nov-2015/')
+base_dir = 'data/original-data/data-nov-2015/'
+exp_dates = [name for name in os.listdir(base_dir)
              if date_pattern.match(name)]
-MAT_DATA_DIRS = [os.path.join('data/data-nov-2015',d,exp_no) for d in exp_dates
-                 for exp_no in os.listdir(os.path.join('data/data-nov-2015', d))
+MAT_DATA_DIRS = [os.path.join(base_dir,d,exp_no) for d in exp_dates
+                 for exp_no in os.listdir(os.path.join(base_dir, d))
                  if exp_no in ['1', '2', '3', '4', '5']] # exp_no is a number
 NPY_DATA_DIR = 'data/natural-npy-jneuro'
+if not os.path.isdir(NPY_DATA_DIR):
+    os.makedirs(NPY_DATA_DIR)
+
 f_names = [os.path.join(p, 'AmpMov.mat') for p in MAT_DATA_DIRS]
 data = [sio.loadmat(loc, struct_as_record=False, squeeze_me=True)['AmpMov']
         for loc in f_names]

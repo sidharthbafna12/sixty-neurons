@@ -12,7 +12,7 @@ class Response:
                                sample index, trial index)
         attrs : (dict) other attributes that may be associated with this
     """
-    def __init__(self, name, data_filename, attrs):
+    def __init__(self, name, data_filename, attrs={}):
         """ name : self.name
             data_filename : the .npy file that holds the data
             attrs : additional attributes
