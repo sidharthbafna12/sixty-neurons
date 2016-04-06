@@ -27,7 +27,7 @@ from sklearn.metrics import confusion_matrix
 
 data_locs= [os.path.join(DATA_DIR, '%s_ori.npy' % c) for c in MICE_NAMES]
 data = map(lambda (n, loc): Response(n, loc), zip(MICE_NAMES, data_locs))
-# data_locs= [os.path.join(RSP_BASE_DIR, '%d.npy' % i) for i in range(11)]
+# data_locs= [os.path.join(DATA_DIR, '%d.npy' % i) for i in range(11)]
 # data = map(lambda (i, loc) : Response(str(i), loc), enumerate(data_locs))
 
 n_train = 3

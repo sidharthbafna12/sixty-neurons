@@ -4,15 +4,12 @@ import numpy as np
 DIRECTIONS = np.linspace(0.0, 360.0, num=16, endpoint=False) # StimSeq in degs
 ORIENTATIONS = DIRECTIONS[:len(DIRECTIONS)/2]
 
+N_MOVIES = len(DIRECTIONS)
 N_TRIALS = 10
 GRATING_DURATION = 2 # in seconds
 GRAY_SCREEN_TIME = 4 # total duration of stimulus = 6s
 CA_SAMPLING_RATE = 20 # in Hz
-TOTAL_NUM_SAMPLES = CA_SAMPLING_RATE * (GRAY_SCREEN_TIME + GRATING_DURATION) \
-                                     * N_TRIALS \
-                                     * len(DIRECTIONS)
-NUM_STIMULUS_PRESENTATIONS = N_TRIALS * len(DIRECTIONS)
-STIMULUS_LENGTH = TOTAL_NUM_SAMPLES / NUM_STIMULUS_PRESENTATIONS
+L_RSP = GRATING_DURATION * CA_SAMPLING_RATE
 
 # TODO : Remove this later.
 PIXELS_PER_DEGREE = 2.0 # 1 degree of visual space ~ 21.3 pixels on the screen

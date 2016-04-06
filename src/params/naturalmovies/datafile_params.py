@@ -3,8 +3,9 @@
 
 import os
 
-MOVIE_DIR = 'data/original-data/NaturalMov_Rel'
-MOVIE_LOCS = [os.path.join(MOVIE_DIR, 'mov%d.mat' % i)
-              for i in range(1,6)]
-RSP_BASE_DIR = 'data/natural-npy-jneuro'
+MAT_MOVIE_DIR = 'data/original-data/NaturalMov_Rel'
+MAT_MOVIE_LOCS = [os.path.join(MOVIE_DIR, 'mov%d.mat' % i)
+                  for i in range(1,6)]
+DATA_DIR = 'data/natural-npy-jneuro'
+MOVIE_DIR = 'data/natural-movie-video-jneuro'
 PLOTS_DIR = 'plots/natural-movies'
