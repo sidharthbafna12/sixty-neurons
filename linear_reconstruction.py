@@ -10,6 +10,9 @@
     where input : (L_RSP * N_TRIALS) x (LY * LX)
           output : (L_RSP * N_TRIALS) x (N * N_LAG)
 
+    Assuming a linear relation between the input and the output, we can estimate
+    the matrix transforming a given video frame to a series of responses, which
+    can be then used to estimate the stimulus from a new set of responses.
 """
 
 import numpy as np
@@ -17,19 +20,24 @@ from matplotlib import pyplot as plt
 import os
 
 from src.response import Response
-from src.params.grating.datafile_params import *
-from src.params.grating.stimulus_params import *
 
-from sklearn.linear_model import LinearRegression, Lasso, Ridge, ElasticNet
+exp_type = 'grating'
+movie_type = 'movie'
+train_frac = 0.5
 
-data_locs = [os.path.join(DATA_DIR, '%s_dir.npy' % c) for c in MICE_NAMES]
-data = map(lambda (n, loc) : Response(n, loc), zip(MICE_NAMES, data_locs))
+if exp_type == 'grating':
+    from src.params.grating.datafile_params import *
+    from src.params.grating.stimulus_params import *
+elif exp_type == 'natural':
+    from src.params.naturalmovies.datafile_params import *
+    from src.params.naturalmovies.stimulus_params import *
 
-reg='l1l2' # regularisation to use in the linear model
-if reg == 'none':
-    movie_type = 'movie'
-else:
-    movie_type = 'movie_dog'
+if exp_type == 'grating':
+    data_locs = [os.path.join(DATA_DIR, '%s_dir.npy' % c) for c in MICE_NAMES]
+    data = map(lambda (n, loc) : Response(n, loc), zip(MICE_NAMES, data_locs))
+elif exp_type == 'natural':
+    data_locs = [os.path.join(DATA_DIR, '%d.npy' % i) for i in range(11)]
+    data = [Response(str(i), data_locs[i]) for i in range(11)]
 
 downsample_factor = 8
 if downsample_factor > 1:
@@ -50,10 +58,10 @@ padded_responses = map(lambda r : np.pad(r.data,((0,0),(0,0),(0,N_LAG-1),(0,0)),
                                          mode='constant'),
                        data)
 
-n_trials_train = int(0.5 * N_TRIALS)
 def get_windows(p_r, trial_range):
     response_windows = []
-    for s in range(N_MOVIES):
+    n_movies = p_r.shape[0]
+    for s in range(n_movies):
         windows = []
         for i_r in trial_range:
             for i_t in range(L_RSP):
@@ -61,28 +69,36 @@ def get_windows(p_r, trial_range):
                 windows.append(rsp)
         response_windows.append(np.vstack(windows))
     return np.array(response_windows)
-response_windows_train = map(lambda p : get_windows(p, range(n_trials_train)),
-                             padded_responses)
-response_windows_test = map(lambda p : get_windows(p, range(n_trials_train,
-                                                            N_TRIALS)),
-                            padded_responses)
+response_windows_train = \
+        map(lambda p:get_windows(p, range(int(train_frac*p.shape[3]))),
+            padded_responses)
+response_windows_test = \
+        map(lambda p:get_windows(p, range(int(train_frac*p.shape[3]),
+                                          p.shape[3])),
+                          padded_responses)
 
 response_matrices_train = response_windows_train
-response_matrices_test = response_windows_train
-movie_matrix_train = np.array(map(lambda m : np.tile(m, (n_trials_train,1)),
-                              movies_flat))
-movie_matrix_test= np.array(map(lambda m:np.tile(m,(N_TRIALS-n_trials_train,1)),
-                            movies_flat))
+response_matrices_test = response_windows_test
 
-print 'Linear reconstruction for %s downsampled %d times, regularisation %s' \
-        % (movie_type, downsample_factor, reg)
+print 'Linear reconstruction for %s downsampled %d times' \
+        % (movie_type, downsample_factor)
 for i in range(len(data)):
     m = data[i]
     mat_tr, mat_te = response_matrices_train[i], response_matrices_test[i]
+    
+    n_tr = m.data.shape[3]
+    n_movies = m.data.shape[0]
+    movie_matrix_train = \
+            np.array(map(lambda m:np.tile(m,(int(train_frac*n_tr),1)),
+                     movies_flat[:n_movies]))
+    movie_matrix_test =\
+            np.array(map(lambda m: np.tile(m, (n_tr - int(train_frac*n_tr),1)),
+                     movies_flat[:n_movies]))
 
     print 'Mouse %s' % m.name
     basedir_path = os.path.join(PLOTS_DIR, 'linear-reconstruction',
-                                'D%d-L%d-%s' % (downsample_factor, N_LAG, reg),
+                                '%s-D%d-L%d' % (movie_type, downsample_factor,
+                                                N_LAG),
                                 m.name)
 
     if not os.path.isdir(basedir_path):
@@ -93,21 +109,8 @@ for i in range(len(data)):
     Y_train = np.vstack(movie_matrix_train)
     Y_test = np.vstack(movie_matrix_test)
     
-    if reg == 'none':
-        m.model = LinearRegression()
-    elif reg == 'l1':
-        m.model = Lasso()
-    elif reg == 'l2':
-        m.model = Ridge()
-    elif reg == 'l1l2':
-        m.model = ElasticNet()
-    else:
-        raise NotImplementedError
-
-    m.model.fit(X_train, Y_train)
-
-    Y_pred = m.model.predict(X_test)
-    # Y_pred = np.dot(X_test, A)
+    A, res, rank, sing = np.linalg.lstsq(X_train, Y_train)
+    Y_pred = np.dot(X_test, A)
 
     n_test = Y_test.shape[0]
     for ii in range(n_test):
