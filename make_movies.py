@@ -39,10 +39,14 @@ import scipy.misc
 from scipy.signal import decimate, resample
 import matplotlib.animation as mani
 
+# DoG radii
+r1 = 5
+r2 = 2
+
 # Reading in the stimulus movies.
 movies = []
 movies_dog = []
-for i, p in enumerate(MOVIE_LOCS):
+for i, p in enumerate(MAT_MOVIE_LOCS):
     print 'Reading movie %d' % i
     # (Y, X, T) convention
     movie= scipy.io.loadmat(p,struct_as_record=False,squeeze_me=True)['movnew']
@@ -66,7 +70,7 @@ for i, p in enumerate(MOVIE_LOCS):
 
     window = np.dot(np.kaiser(movie.shape[0],2.).reshape((movie.shape[0],1)),
                     np.kaiser(movie.shape[1],2.).reshape((movie.shape[1],1)).T)
-    movie_dog=np.dstack([window*(gfilt(movie[:,:,t],5)-gfilt(movie[:,:,t],2))
+    movie_dog=np.dstack([window*(gfilt(movie[:,:,t],r1)-gfilt(movie[:,:,t],r2))
                          for t in range(T)])
     movies_dog.append(movie_dog)
 

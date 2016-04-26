@@ -15,17 +15,19 @@ elif exp_type == 'natural':
     from src.params.naturalmovies.stimulus_params import CA_SAMPLING_RATE
 
 
-for rtype in sorted(os.listdir(os.path.join(PLOTS_DIR,
-                                            'linear-reconstruction'))):
-    rtype_dir = os.path.join(PLOTS_DIR, 'linear-reconstruction', rtype)
-    for mname in sorted(os.listdir(rtype_dir)):
-        mdir = os.path.join(rtype_dir, mname)
-        for trial_num in sorted(os.listdir(mdir)):
-            frames_dir = os.path.join(mdir, trial_num)
-            first = int(sorted(os.listdir(frames_dir))[0].replace('.png', ''))
-            command = 'ffmpeg -framerate %d -start_number %d '\
-                      '-i %s/%%d.png %s/video.mp4'\
-                      % (CA_SAMPLING_RATE, first, frames_dir, frames_dir)
-            print command
-            os.system(command)
-            time.sleep(0.5)
+reconst_dirs = ['linear-reconstruction'] \
+             + ['cca-reconstruction/%d-components' % i for i in [2,4,8,16,64]]
+for recon_dir in reconst_dirs:
+    for rtype in sorted(os.listdir(os.path.join(PLOTS_DIR, recon_dir))):
+        rtype_dir = os.path.join(PLOTS_DIR, recon_dir, rtype)
+        for mname in sorted(os.listdir(rtype_dir)):
+            mdir = os.path.join(rtype_dir, mname)
+            for trial_num in sorted(os.listdir(mdir)):
+                frames_dir = os.path.join(mdir, trial_num)
+                first=int(sorted(os.listdir(frames_dir))[0].replace('.png',''))
+                command = 'ffmpeg -framerate %d -start_number %d '\
+                          '-i %s/%%d.png %s/video.mp4'\
+                          % (CA_SAMPLING_RATE, first, frames_dir, frames_dir)
+                print command
+                os.system(command)
+                time.sleep(0.5)

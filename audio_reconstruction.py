@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """
     Trying to reconstruct a ground-truth audio stimulus (TIMIT utterances) from
     an LNP model of cortical neurons.

@@ -13,7 +13,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import os
 
-# GratingResponse tuning properties
+# Response tuning properties
 from src.gaussian_fit import wrapped_double_gaussian
 from src.gaussian_fit import fit_wrapped_double_gaussian
 from src.osi import selectivity_index, pref_direction
@@ -57,6 +57,7 @@ for index, (m_dir, m_ori) in enumerate(zip(data_dirn, data_ori)):
     
     ############################################################################
     # Plotting
+    print 'TODO : larger title font, errorbars'
     # Average response
     if not os.path.isdir(os.path.join(PLOTS_DIR,'orientation-tuning')):
         os.makedirs(os.path.join(PLOTS_DIR, 'orientation-tuning'))
@@ -77,38 +78,32 @@ for index, (m_dir, m_ori) in enumerate(zip(data_dirn, data_ori)):
     plt.xlabel('Neuron index')
     plt.ylabel('Direction (divided by 22.5 degrees)')
 
-    fig.savefig(os.path.join(PLOTS_DIR,'orientation-tuning/avg-rsp-%s.png'% name),
+    fig.savefig(os.path.join(PLOTS_DIR,'orientation-tuning/avg-rsp-%s.eps'% name),
                 bbox_inches='tight')
     plt.close()
     
-    # OSI/DSI
-    rows = 2; cols = 3
-    fig = plt.figure(figsize=(cols*5, rows*5))
-
-    sp = fig.add_subplot(rows, cols, 1)
-    sp.set_title('Double Gaussian Quality of Fit (R^2)')
-    plt.plot(m_dir.dg_fit_r2)
-
-    sp = fig.add_subplot(rows, cols, 2)
-    sp.set_title('OSI')
-    plt.plot(m_ori.osi)
-
-    sp = fig.add_subplot(rows, cols, 3)
-    sp.set_title('DSI')
-    plt.plot(m_dir.dsi)
-
-    sp = fig.add_subplot(rows, cols, 5)
-    sp.set_title('Preferred orientation')
-    plt.plot(m_ori.pref_orientation)
-
-    sp = fig.add_subplot(rows, cols, 6)
-    sp.set_title('Preferred direction')
-    plt.plot(m_dir.pref_direction)
-
-    fig.savefig(os.path.join(PLOTS_DIR,
-                             'orientation-tuning/Selectivity-%s.png' % name),
-                bbox_inches='tight')
-    plt.close()
+    # OSI/DSI/R^2
+    # Plotting histograms of these to show how many neurons are selective etc.
+    n_bins = 25
+    def plot_hist(index, quant_name, plot_name):
+        fig = plt.figure()
+        lefts = np.linspace(np.min(index), np.max(index), num=n_bins+1)[:-1]
+        width = (np.max(index) - np.min(index)) / n_bins
+        plt.bar(lefts, np.histogram(index, bins=n_bins)[0], width)
+        plt.ylabel('Count')
+        plt.xlabel('%s value' % quant_name)
+        plt.title('%s histogram' % quant_name)
+        fig.savefig(os.path.join(PLOTS_DIR,
+                                 'orientation-tuning/hist-%s.eps' % plot_name),
+                    bbox_inches='tight')
+        plt.close()
+    plot_hist(m_dir.dsi, 'DSI', 'dsi-%s' % name)
+    plot_hist(m_ori.osi, 'OSI', 'osi-%s' % name)
+    plot_hist(m_dir.dg_fit_r2, 'R^2', 'dg_r2-%s' % name)
+    plot_hist(m_dir.pref_direction, 'Preferred direction (grating angle)',
+              'pref-dir-%s' % name)
+    plot_hist(m_ori.pref_orientation, 'Preferred grating orientation',
+              'pref-ori-%s' % name)
 
     # Tuning curves
     if not os.path.isdir(os.path.join(PLOTS_DIR, 'orientation-tuning',
@@ -126,7 +121,7 @@ for index, (m_dir, m_ori) in enumerate(zip(data_dirn, data_ori)):
         fig.suptitle('Mouse %s Neuron %d Orientation Tuning Curve '
                      '(R-squared %.2f)' % (name, i, m_dir.dg_fit_r2[i]))
         plt.xlabel('Stimulus')
-        plt.ylabel('Average GratingResponse')
+        plt.ylabel('Average Response')
         plt.scatter(DIRECTIONS, m_dir.avg[:,i], label='recorded')
 
         dirs_rad_finer = np.linspace(np.min(dirs_rad),np.max(dirs_rad),num=200)
@@ -137,7 +132,7 @@ for index, (m_dir, m_ori) in enumerate(zip(data_dirn, data_ori)):
         ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         fig.savefig(os.path.join(PLOTS_DIR,
-                            'orientation-tuning/tuning-curves-%s/%s_%d.png'
+                            'orientation-tuning/tuning-curves-%s/%s_%d.eps'
                             % (name, name, i)),
                     bbox_inches='tight')
         plt.close()
@@ -154,7 +149,7 @@ for index, (m_dir, m_ori) in enumerate(zip(data_dirn, data_ori)):
                      % (name, i))
 
         fig.savefig(os.path.join(PLOTS_DIR,
-                                 'orientation-tuning/cir-vecs-%s/Vecs-%s_%d.png'
+                                 'orientation-tuning/cir-vecs-%s/vecs-%s_%d.eps'
                                  % (name,name,i)),
                     bbox_inches='tight')
         plt.close()

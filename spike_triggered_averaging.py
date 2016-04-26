@@ -19,14 +19,11 @@ downsample_factor = 8
 if exp_type == 'grating':
     from src.params.grating.datafile_params import *
     from src.params.grating.stimulus_params import *
-elif exp_type == 'natural':
-    from src.params.naturalmovies.datafile_params import *
-    from src.params.naturalmovies.stimulus_params import *
-
-if exp_type == 'grating':
     data_locs = [os.path.join(DATA_DIR, '%s_dir.npy' % c) for c in MICE_NAMES]
     data = map(lambda (n, loc) : Response(n, loc), zip(MICE_NAMES, data_locs))
 elif exp_type == 'natural':
+    from src.params.naturalmovies.datafile_params import *
+    from src.params.naturalmovies.stimulus_params import *
     data_locs = [os.path.join(DATA_DIR, '%d.npy' % i) for i in range(11)]
     data = [Response(str(i), data_locs[i]) for i in range(11)]
 

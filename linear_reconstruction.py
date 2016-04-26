@@ -21,25 +21,23 @@ import os
 
 from src.response import Response
 
-exp_type = 'grating'
+exp_type = 'natural'
 movie_type = 'movie'
+downsample_factor = 4
+N_LAG = 5 # 5 samples
 train_frac = 0.5
 
 if exp_type == 'grating':
     from src.params.grating.datafile_params import *
     from src.params.grating.stimulus_params import *
-elif exp_type == 'natural':
-    from src.params.naturalmovies.datafile_params import *
-    from src.params.naturalmovies.stimulus_params import *
-
-if exp_type == 'grating':
     data_locs = [os.path.join(DATA_DIR, '%s_dir.npy' % c) for c in MICE_NAMES]
     data = map(lambda (n, loc) : Response(n, loc), zip(MICE_NAMES, data_locs))
 elif exp_type == 'natural':
+    from src.params.naturalmovies.datafile_params import *
+    from src.params.naturalmovies.stimulus_params import *
     data_locs = [os.path.join(DATA_DIR, '%d.npy' % i) for i in range(11)]
     data = [Response(str(i), data_locs[i]) for i in range(11)]
 
-downsample_factor = 8
 if downsample_factor > 1:
     movie_locs = [os.path.join(MOVIE_DIR, str(s), '%s_down' % movie_type,
                                '%d.npy' % downsample_factor)
@@ -53,7 +51,6 @@ movies_flat = map(lambda m : np.vstack([m[:,:,t].flatten()
                                         for t in range(L_RSP)]),
                   movies)
 
-N_LAG = 5 # 5 samples
 padded_responses = map(lambda r : np.pad(r.data,((0,0),(0,0),(0,N_LAG-1),(0,0)),
                                          mode='constant'),
                        data)
@@ -69,16 +66,13 @@ def get_windows(p_r, trial_range):
                 windows.append(rsp)
         response_windows.append(np.vstack(windows))
     return np.array(response_windows)
-response_windows_train = \
+response_matrices_train = \
         map(lambda p:get_windows(p, range(int(train_frac*p.shape[3]))),
             padded_responses)
-response_windows_test = \
+response_matrices_test = \
         map(lambda p:get_windows(p, range(int(train_frac*p.shape[3]),
                                           p.shape[3])),
-                          padded_responses)
-
-response_matrices_train = response_windows_train
-response_matrices_test = response_windows_test
+            padded_responses)
 
 print 'Linear reconstruction for %s downsampled %d times' \
         % (movie_type, downsample_factor)
