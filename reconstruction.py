@@ -13,7 +13,7 @@ from copy import deepcopy
 from src.response import Response
 from src.reverse_correlation import FlatPriorReverseCorrelation
 from src.reverse_correlation import OptimalPriorReverseCorrelation 
-from src.cca import CCAReconstruction
+from src.linear_reconstruction import LinearReconstruction
 
 def load_responses(exp_type):
     if exp_type == 'grating':
@@ -120,21 +120,19 @@ elif exp_type == 'grating':
 movie_type = 'movie'
 downsample_factor = 8
 n_lag = 7
-n_components = 64
+n_components = 32
 split_type = 'loo'
-model_type = 'cca'
+model_type = 'linear-regression'
+regularisation = 'l2'
 
 responses = load_responses(exp_type)
 movies = load_movies(exp_type, movie_type, downsample_factor=downsample_factor)
 
-if split_type == 'even':
-    train_test_splits = map(lambda r: train_test_split(r, movies, 'even',
-                                                       train_frac=0.5),
-                            responses)
-elif split_type == 'loo':
-    train_test_splits = map(lambda r: train_test_split(r, movies, 'loo',
-                                                       to_leave_out=0),
-                            responses)
+train_test_splits = map(lambda r: train_test_split(r, movies, split_type,
+                                                   train_frac=0.5,
+                                                   to_leave_out=0),
+
+                        responses)
 
 for i in range(len(responses)):
     name = responses[i].name
@@ -149,7 +147,12 @@ for i in range(len(responses)):
     elif model_type == 'optimal-prior':
         model = OptimalPriorReverseCorrelation(n_lag = n_lag)
     elif model_type == 'cca':
-        model = CCAReconstruction(n_lag=n_lag, n_components = n_components)
+        model = LinearReconstruction('cca', n_lag=n_lag,
+                                     n_components = n_components)
+    elif model_type == 'linear-regression':
+        model = LinearReconstruction('linear-regression', n_lag=n_lag,
+                                     regularisation=regularisation)
+
     model.fit(tr_rsp, tr_mov)
 
     print 'Reconstructing stimulus movies...'
