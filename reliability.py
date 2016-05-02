@@ -28,11 +28,8 @@ for m in data:
     S, N, L, R = m.data.shape
     avg_response = np.mean(m.data, axis=(2,3))
 
-    m.reliability = np.zeros((N,S))
+    m.reliability = reliability(m.data)
 
-    for i in range(N):
-        m.reliability[i,:] = reliability(m.data[:,i,:,:])
-        
     # Plot
     if not os.path.isdir(os.path.join(PLOTS_DIR, 'reliability',
                                       'mouse-%s' % m.name)):

@@ -74,7 +74,7 @@ def train_test_split(responses, movies, split_type,
 
     return train_rsps, test_rsps, train_movies, test_movies
 
-def dump_reconstruction(pred_stim, act_stim, basedir):
+def dump_reconstruction(pred_stim, act_stim, ssims, basedir):
     assert len(pred_stim) == len(act_stim)
     n_movies = len(pred_stim)
     for i in range(n_movies):
@@ -93,6 +93,8 @@ def dump_reconstruction(pred_stim, act_stim, basedir):
                 r_img = right_movie[:,:,t]
 
                 fig = plt.figure()
+                plt.title('Frame %d (SSIM %.3f)' % (t, ssims[i][i_tr][t]))
+                plt.axis('off')
 
                 sp = fig.add_subplot(1, 2, 1)
                 plt.imshow(l_img, cmap='gray', interpolation='nearest')
@@ -122,48 +124,50 @@ downsample_factor = 8
 n_lag = 7
 n_components = 32
 split_type = 'loo'
-model_type = 'linear-regression'
-regularisation = 'l2'
+model_name = 'cca'
+model_type = 'forward'
+regularisation = None
 
 responses = load_responses(exp_type)
 movies = load_movies(exp_type, movie_type, downsample_factor=downsample_factor)
 
 train_test_splits = map(lambda r: train_test_split(r, movies, split_type,
-                                                   train_frac=0.5,
+                                                   train_frac=0.7,
                                                    to_leave_out=0),
 
                         responses)
 
-for i in range(len(responses)):
-    name = responses[i].name
+for i, response in enumerate(responses):
+    name = response.name
     print 'Mouse %s' % name
     
     print 'Splitting out training and test data...'
     tr_rsp, te_rsp, tr_mov, te_mov = train_test_splits[i]
 
-    print 'Fitting model parameters for %s...' % model_type
-    if model_type == 'flat-prior':
+    print 'Fitting model parameters for %s %s...' % (model_type, model_name)
+    if model_name == 'flat-prior':
         model = FlatPriorReverseCorrelation(n_lag = n_lag)
-    elif model_type == 'optimal-prior':
+    elif model_name == 'optimal-prior':
         model = OptimalPriorReverseCorrelation(n_lag = n_lag)
-    elif model_type == 'cca':
-        model = LinearReconstruction('cca', n_lag=n_lag,
+    elif model_name == 'cca':
+        model = LinearReconstruction('cca', model_type, n_lag=n_lag,
                                      n_components = n_components)
-    elif model_type == 'linear-regression':
-        model = LinearReconstruction('linear-regression', n_lag=n_lag,
-                                     regularisation=regularisation)
+    elif model_name == 'linear-regression':
+        model = LinearReconstruction('linear-regression', model_type,
+                                     n_lag=n_lag, regularisation=regularisation)
 
     model.fit(tr_rsp, tr_mov)
 
     print 'Reconstructing stimulus movies...'
     pred_movies = model.predict(te_rsp)
+    ssims = model.reconstruction_quality(pred_movies, te_mov)
 
     print 'Dumping reconstructed movies...'
     dump_dir = os.path.join(PLOTS_DIR, 'reconstruction',
-                            model_type, 'split-%s' % split_type,
+                            model_name, model_type, 'split-%s' % split_type,
                             '%s-D%d-L%d'%(movie_type,downsample_factor,n_lag),
                             'mouse-%s' % name)
     if not os.path.isdir(dump_dir):
         os.makedirs(dump_dir)
 
-    dump_reconstruction(pred_movies, te_mov, dump_dir)
+    dump_reconstruction(pred_movies, te_mov, ssims, dump_dir)

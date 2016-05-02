@@ -6,11 +6,15 @@ import numpy as np
 
 from sklearn.cross_decomposition import CCA
 from sklearn.linear_model import LinearRegression, Lasso, Ridge, ElasticNet
+from ssim import ssim
 
 class LinearReconstruction:
-    def __init__(self, model_name, n_components=None, n_lag=None,
+    def __init__(self, model_name, model_type,
+                 n_components=None, n_lag=None,
                  regularisation=None):
         self.n_lag = n_lag
+        self.model_name = model_name
+        self.model_type = model_type
         
         if model_name == 'cca':
             self.n_components = n_components
@@ -46,19 +50,33 @@ class LinearReconstruction:
             self.baseline_rsps[i_n] = avg_rsp[:,i_n,:].mean()
             avg_rsp[:,i_n,:] -= self.baseline_rsps[i_n]
         
-        # Pad with zeros to fill out the responses at the end.
-        avg_rsp = np.pad(avg_rsp, ((0,0), (0,0), (0,self.n_lag-1)),
-                         mode='constant')
+        if self.model_type == 'forward':
+            # Pad with zeros to fill out the responses at the end.
+            avg_rsp = np.pad(avg_rsp, ((0,0), (0,0), (0,self.n_lag-1)),
+                             mode='constant')
 
-        # Create the X and Y matrices for CCA.
-        X = np.zeros((n_stim * n_samples, n_cells * self.n_lag))
-        Y = np.zeros((n_stim * n_samples, n_px))
-        for i_s in range(n_stim):
-            for i_t in range(n_samples):
-                row = i_s * n_samples + i_t
-                X[row,:] = avg_rsp[i_s,:,i_t:i_t+self.n_lag].flatten()
-                Y[row,:] = stim[i_s][:,:,i_t].flatten()
-        
+            # Create the X and Y matrices.
+            X = np.zeros((n_stim * n_samples, n_cells * self.n_lag))
+            Y = np.zeros((n_stim * n_samples, n_px))
+            for i_s in range(n_stim):
+                for i_t in range(n_samples):
+                    row = i_s * n_samples + i_t
+                    X[row,:] = avg_rsp[i_s,:,i_t:i_t+self.n_lag].flatten()
+                    Y[row,:] = stim[i_s][:,:,i_t].flatten()
+        elif self.model_type == 'reverse':
+            # Pad movie with zeros to fill it out.
+            p_stim = [np.pad(m,((0,0),(0,0),(self.n_lag-1,0)),mode='constant')
+                      for m in stim]
+            
+            # Creating the X and Y matrices.
+            X = np.zeros((n_stim * n_samples, n_cells))
+            Y = np.zeros((n_stim * n_samples, n_px * self.n_lag))
+            for i_s in range(n_stim):
+                for i_t in range(n_samples):
+                    row = i_s * n_samples + i_t
+                    X[row,:] = avg_rsp[i_s,:,i_t]
+                    Y[row,:] = p_stim[i_s][:,:,i_t:i_t+self.n_lag].flatten()
+
         self.model.fit(X, Y)
 
     def predict(self, rsp):
@@ -66,7 +84,7 @@ class LinearReconstruction:
             rsp : Response instance containing data (S x N x L x R)
             Return list of list of movies with len(list) = S
                     and
-                   len(list[i]) = rsp.data.shape[3]
+                   len(list[i]) = R
         """
         n_stim, n_cells, n_samples, n_trials = rsp.data.shape
         n_px = self.LY * self.LX
@@ -84,13 +102,41 @@ class LinearReconstruction:
             for i_tr in range(n_trials):
                 movie = np.zeros((self.LY, self.LX, n_samples))
 
-                X = np.zeros((n_samples, n_cells * self.n_lag))
-                for i_t in range(n_samples):
-                    X[i_t,:] = r[i_s,:,i_t:i_t+self.n_lag,i_tr].flatten()
+                if self.model_type == 'forward':
+                    X = np.zeros((n_samples, n_cells * self.n_lag))
+                    for i_t in range(n_samples):
+                        X[i_t,:] = r[i_s,:,i_t:i_t+self.n_lag,i_tr].flatten()
+                elif self.model_type == 'reverse':
+                    X = np.zeros((n_samples, n_cells))
+                    for i_t in range(n_samples):
+                        X[i_t,:] = r[i_s,:,i_t,i_tr]
 
                 Y_pred = self.model.predict(X)
                 for i_t in range(n_samples):
-                    movie[:,:,i_t] = Y_pred[i_t,:].reshape((self.LY, self.LX))
+                    if self.model_type == 'forward':
+                        movie[:,:,i_t]=Y_pred[i_t,:].reshape((self.LY,self.LX))
+                    elif self.model_type == 'reverse':
+                        window = Y_pred[i_t,:]\
+                                .reshape((self.LY, self.LX, self.n_lag))
+                        movie[:,:,i_t] = window[:,:,-1]
                 reconst.append(movie)
             reconstructed.append(reconst)
         return reconstructed
+
+    def reconstruction_quality(self, reconstructed_movies, actual_movies):
+        """
+            reconstructed_movies : output from self.predict
+            actual_movies : ground truth
+        """
+        ssims = []
+        for i in range(len(actual_movies)):
+            x0 = actual_movies[i]
+            T = x0.shape[2]
+            sims = []
+            for i_tr in range(len(reconstructed_movies[i])):
+                x = reconstructed_movies[i][i_tr]
+                sims.append([ssim(x0[:,:,i_t], x[:,:,i_t])
+                             for i_t in range(T)])
+            ssims.append(sims)
+        return ssims
+
