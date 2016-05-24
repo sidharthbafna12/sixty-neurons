@@ -11,6 +11,57 @@ import os
 # Reading in data
 from src.response import Response
 
+def load_responses(exp_type):
+    if exp_type == 'grating':
+        from src.params.grating.datafile_params import DATA_DIR, MICE_NAMES
+        data_locs = [os.path.join(DATA_DIR,'%s_dir.npy'%c) for c in MICE_NAMES]
+        data = map(lambda (n, loc): Response(n, loc), zip(MICE_NAMES,data_locs))
+    elif exp_type == 'natural':
+        from src.params.naturalmovies.datafile_params import DATA_DIR
+        data_locs = [os.path.join(DATA_DIR, '%d.npy' % i) for i in range(11)]
+        data = [Response(str(i), data_locs[i]) for i in range(11)]
+
+    return data
+
+def load_movies(exp_type, movie_type, downsample_factor=1):
+    if exp_type == 'grating':
+        from src.params.grating.datafile_params import MOVIE_DIR
+        from src.params.grating.stimulus_params import N_MOVIES
+    elif exp_type == 'natural':
+        from src.params.naturalmovies.datafile_params import MOVIE_DIR
+        from src.params.naturalmovies.stimulus_params import N_MOVIES
+
+    if downsample_factor > 1:
+        movie_locs = [os.path.join(MOVIE_DIR, str(s), '%s_down' % movie_type,
+                                   '%d.npy' % downsample_factor)
+                      for s in range(N_MOVIES)]
+    else:
+        movie_locs = [os.path.join(MOVIE_DIR, str(s), '%s.npy' % movie_type)
+                      for s in range(N_MOVIES)]
+    movies = map(np.load, movie_locs)
+    return movies
+
+
+################################################################################
+################################################################################
+exp_type = 'natural'
+if exp_type == 'natural':
+    from src.params.naturalmovies.datafile_params import PLOTS_DIR
+    from src.params.naturalmovies.stimulus_params import CA_SAMPLING_RATE
+elif exp_type == 'grating':
+    from src.params.grating.datafile_params import PLOTS_DIR
+    from src.params.grating.stimulus_params import CA_SAMPLING_RATE
+
+movie_type = 'movie'
+downsample_factor = 4
+n_lag = 11
+n_clusters = 4
+
+responses = load_responses(exp_type)
+movies = load_movies(exp_type, movie_type, downsample_factor=downsample_factor)
+
+
+"""
 N_STA = 5
 exp_type = 'natural'
 movie_type = 'movie_dog_ddt'
@@ -96,3 +147,4 @@ for index, m in enumerate(data):
         sta /= float(S)
 
         dumpSTA(sta, os.path.join(basedir, 'neuron-%d.png' % i_n), baseline_sta)
+"""

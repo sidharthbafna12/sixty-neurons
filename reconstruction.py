@@ -6,7 +6,7 @@
 
 import numpy as np
 from matplotlib import pyplot as plt
-import os
+import os, time
 
 from copy import deepcopy
 
@@ -111,21 +111,31 @@ def dump_reconstruction(pred_stim, act_stim, ssims, basedir):
                 fig.savefig(os.path.join(dir_path, '%d.png' % t))
                 plt.close()
 
+            # dump video as well
+            command = 'ffmpeg -framerate %d -i %s/%%d.png %s/video.mp4'\
+                    % (CA_SAMPLING_RATE, dir_path, dir_path)
+            print command
+            os.system(command)
+            time.sleep(0.5)
+
 ################################################################################
 ################################################################################
 exp_type = 'natural'
 if exp_type == 'natural':
     from src.params.naturalmovies.datafile_params import PLOTS_DIR
+    from src.params.naturalmovies.stimulus_params import CA_SAMPLING_RATE
 elif exp_type == 'grating':
     from src.params.grating.datafile_params import PLOTS_DIR
+    from src.params.grating.stimulus_params import CA_SAMPLING_RATE
 
 movie_type = 'movie'
-downsample_factor = 8
-n_lag = 7
-n_components = 32
+downsample_factor = 4
+n_lag = 11
+n_clusters = 4
+n_components = 64
 split_type = 'loo'
-model_name = 'cca'
-model_type = 'forward'
+model_name = 'linear-regression'
+model_type = 'reverse'
 regularisation = None
 
 responses = load_responses(exp_type)
@@ -151,10 +161,12 @@ for i, response in enumerate(responses):
         model = OptimalPriorReverseCorrelation(n_lag = n_lag)
     elif model_name == 'cca':
         model = LinearReconstruction('cca', model_type, n_lag=n_lag,
+                                     n_clusters=n_clusters,
                                      n_components = n_components)
     elif model_name == 'linear-regression':
         model = LinearReconstruction('linear-regression', model_type,
-                                     n_lag=n_lag, regularisation=regularisation)
+                                     n_clusters=n_clusters, n_lag=n_lag,
+                                     regularisation=regularisation)
 
     model.fit(tr_rsp, tr_mov)
 

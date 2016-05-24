@@ -7,14 +7,18 @@ import numpy as np
 from sklearn.cross_decomposition import CCA
 from sklearn.linear_model import LinearRegression, Lasso, Ridge, ElasticNet
 from ssim import ssim
+from scipy.spatial.distance import squareform
+import scipy.cluster.hierarchy as hac
+
+from correlation import signal_correlation, noise_correlation
 
 class LinearReconstruction:
-    def __init__(self, model_name, model_type,
-                 n_components=None, n_lag=None,
-                 regularisation=None):
+    def __init__(self, model_name, model_type, n_clusters=None,
+                 n_components=None, n_lag=None, regularisation=None):
         self.n_lag = n_lag
         self.model_name = model_name
         self.model_type = model_type
+        self.n_clusters = n_clusters
         
         if model_name == 'cca':
             self.n_components = n_components
@@ -41,8 +45,25 @@ class LinearReconstruction:
         self.LY, self.LX, n_samples = stim[0].shape
         n_px = self.LY * self.LX
 
+        # Cluster the responses.
+        corr = signal_correlation(rsp.data)
+        dists = squareform(0.5 * (1.0 - corr))
+        linkage = hac.linkage(dists, method='complete')
+        cl_idxs = hac.fcluster(linkage, self.n_clusters, criterion='maxclust')
+        self.cl_idxs = cl_idxs
+        
         # Average the response across trials.
         avg_rsp = np.mean(rsp.data, axis=3)
+
+        # Normalise the responses by the sum of the responses in the clusters.
+        for i_c in range(1, self.n_clusters + 1):
+            idxs = [i for i in range(n_cells) if cl_idxs[i] == i_c]
+            if len(idxs) == 0:
+                continue
+
+            for t in range(n_samples):
+                for i_s in range(n_stim):
+                    avg_rsp[i_s,idxs,t] /= avg_rsp[i_s,idxs,t].sum()
 
         # Remove the baseline response for all cells.
         self.baseline_rsps = np.zeros(n_cells)
@@ -50,7 +71,7 @@ class LinearReconstruction:
             self.baseline_rsps[i_n] = avg_rsp[:,i_n,:].mean()
             avg_rsp[:,i_n,:] -= self.baseline_rsps[i_n]
         
-        if self.model_type == 'forward':
+        if self.model_type == 'reverse':
             # Pad with zeros to fill out the responses at the end.
             avg_rsp = np.pad(avg_rsp, ((0,0), (0,0), (0,self.n_lag-1)),
                              mode='constant')
@@ -63,7 +84,7 @@ class LinearReconstruction:
                     row = i_s * n_samples + i_t
                     X[row,:] = avg_rsp[i_s,:,i_t:i_t+self.n_lag].flatten()
                     Y[row,:] = stim[i_s][:,:,i_t].flatten()
-        elif self.model_type == 'reverse':
+        elif self.model_type == 'forward':
             # Pad movie with zeros to fill it out.
             p_stim = [np.pad(m,((0,0),(0,0),(self.n_lag-1,0)),mode='constant')
                       for m in stim]
@@ -89,10 +110,23 @@ class LinearReconstruction:
         n_stim, n_cells, n_samples, n_trials = rsp.data.shape
         n_px = self.LY * self.LX
         reconstructed = []
-
-        r = np.pad(rsp.data, ((0,0), (0,0), (0,self.n_lag-1), (0,0)),
-                   mode='constant')
         
+        r = rsp.data
+
+        # Normalise response using the cluster responses
+        for i_c in range(1, self.n_clusters + 1):
+            idxs = [i for i in range(n_cells) if self.cl_idxs[i] == i_c]
+            if len(idxs) == 0:
+                continue
+
+            for t in range(n_samples):
+                for i_s in range(n_stim):
+                    for i_tr in range(n_trials):
+                        r[i_s,idxs,t,i_tr] /= r[i_s,idxs,t,i_tr].sum()
+        
+        r = np.pad(r, ((0,0), (0,0), (0,self.n_lag-1), (0,0)),
+                   mode='constant')
+
         # Remove baseline response for each cell.
         for i_n in range(n_cells):
             r[:,i_n,:,:] -= self.baseline_rsps[i_n]
@@ -102,20 +136,20 @@ class LinearReconstruction:
             for i_tr in range(n_trials):
                 movie = np.zeros((self.LY, self.LX, n_samples))
 
-                if self.model_type == 'forward':
+                if self.model_type == 'reverse':
                     X = np.zeros((n_samples, n_cells * self.n_lag))
                     for i_t in range(n_samples):
                         X[i_t,:] = r[i_s,:,i_t:i_t+self.n_lag,i_tr].flatten()
-                elif self.model_type == 'reverse':
+                elif self.model_type == 'forward':
                     X = np.zeros((n_samples, n_cells))
                     for i_t in range(n_samples):
                         X[i_t,:] = r[i_s,:,i_t,i_tr]
 
                 Y_pred = self.model.predict(X)
                 for i_t in range(n_samples):
-                    if self.model_type == 'forward':
+                    if self.model_type == 'reverse':
                         movie[:,:,i_t]=Y_pred[i_t,:].reshape((self.LY,self.LX))
-                    elif self.model_type == 'reverse':
+                    elif self.model_type == 'forward':
                         window = Y_pred[i_t,:]\
                                 .reshape((self.LY, self.LX, self.n_lag))
                         movie[:,:,i_t] = window[:,:,-1]
@@ -139,4 +173,3 @@ class LinearReconstruction:
                              for i_t in range(T)])
             ssims.append(sims)
         return ssims
-
