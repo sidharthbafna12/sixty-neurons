@@ -9,8 +9,9 @@ import os
 
 from src.response import Response
 from src.reliability import reliability
+from src.correlation import signal_correlation, noise_correlation
 
-exp_type = 'natural'
+exp_type = 'grating'
 if exp_type == 'grating':
     from src.params.grating.datafile_params import *
     from src.params.grating.stimulus_params import *
@@ -80,7 +81,7 @@ for m in data:
         plt.xlabel('%s stimulus index' % exp_type)
         plt.ylabel('Reliability')
         plt.title('Reliability of %s responses' % exp_type)
-        plt.legend(handles=handles)
+        plt.legend(handles)
         fig.savefig(os.path.join(PLOTS_DIR, 'reliability',
                                  'mouse-%s' % m.name,
                                  '%d.eps' % i),

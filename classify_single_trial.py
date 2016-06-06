@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-""" reconstruction.py
-    A more refined version of the reconstruction pipeline implemented in
-    linear_reconstruction.py.
+""" classify_single_trial.py
+    Decode stimulus identity from V1 responses on single-trial basis.
 """
 
 import numpy as np
@@ -11,7 +10,8 @@ import os, time
 from copy import deepcopy
 
 from src.response import Response
-from src.linear_reconstruction import LinearReconstruction
+from src.avg_template import AverageTemplate
+from scipy.signal import decimate
 
 def load_responses(exp_type):
     if exp_type == 'grating':
@@ -72,53 +72,72 @@ def train_test_split(responses, movies, split_type,
 
     return train_rsps, test_rsps, train_movies, test_movies
 
-def dump_reconstruction(pred_stim, act_stim, ssims, basedir):
-    assert len(pred_stim) == len(act_stim)
-    n_movies = len(pred_stim)
-    for i in range(n_movies):
-        num_trials = len(pred_stim[i])
-        for i_tr in range(num_trials):
-            dir_path = os.path.join(basedir, 'movie-%s' % str(i),
-                                    'trial-%s' % str(i_tr))
-            if not os.path.isdir(dir_path):
-                os.makedirs(dir_path)
+def train_test_split_grating(responses, tr_idxs):
+    N_S = responses.data.shape[0]
+    tr_rsps = deepcopy(responses)
+    te_rsps = deepcopy(responses)
+    te_idxs = [i for i in range(N_S) if i not in tr_idxs]
+    tr_rsps.data = tr_rsps.data[tr_idxs,:,:,:]
+    te_rsps.data = te_rsps.data[te_idxs,:,:,:]
+    return tr_rsps, te_rsps
 
-            left_movie = pred_stim[i][i_tr]
-            right_movie = act_stim[i]
-            T = left_movie.shape[2]
-            for t in range(T):
-                l_img = left_movie[:,:,t]
-                r_img = right_movie[:,:,t]
+def confusion_matrix(pred):
+    n_stim, n_trials = pred.shape
+    cm = np.zeros((n_stim, n_stim), dtype=int)
+    for i_s in range(n_stim):
+        for i_tr in range(n_trials):
+            predicted = pred[i_s,i_tr]
+            actual = i_s
+            cm[actual,predicted] += 1
+    return cm
 
-                fig = plt.figure()
-                plt.title('Frame %d (SSIM %.3f)' % (t, ssims[i][i_tr][t]))
-                plt.axis('off')
+def confusion_matrix_grating(pred):
+    def remove_all(l, d):
+        for i in d:
+            l.remove(i)
+        return l
 
-                sp = fig.add_subplot(1, 2, 1)
-                plt.imshow(l_img, cmap='gray', interpolation='nearest')
-                plt.colorbar(orientation='horizontal',
-                             ticks=[l_img.min(), l_img.max()])
-                plt.axis('off')
+    n_classes = 16
+    cm = np.zeros((n_classes, n_classes), dtype=int)
+    train_classes = [0,4,8,12]
+    test_classes = remove_all(range(n_classes), train_classes)
+    for i, i_te in enumerate(test_classes):
+        for p in pred[i]:
+            cm[i_te][train_classes[p]] += 1
+    return cm
 
-                sp = fig.add_subplot(1, 2, 2)
-                plt.imshow(r_img, cmap='gray', interpolation='nearest')
-                plt.colorbar(orientation='horizontal',
-                             ticks=[r_img.min(), r_img.max()])
-                plt.axis('off')
+def cm_goodness(cm, stim_type):
+    goodness = 0
 
-                fig.savefig(os.path.join(dir_path, '%d.png' % t))
-                plt.close()
+    # distance_table = [0,1,2,3,4,5,6,7,8,7,6,5,4,3,2,1]
+    distance_table = [0,1,2,3,4,3,2,1,0,1,2,3,4,3,2,1]
+    max_dt = max(distance_table)
 
-            # dump video as well
-            command = 'avconv -framerate %d -i %s/%%d.png %s/video.mp4'\
-                    % (CA_SAMPLING_RATE, dir_path, dir_path)
-            print command
-            os.system(command)
-            time.sleep(0.5)
+    if stim_type == 'natural':
+        goodness = float(np.diag(cm).sum()) / cm.sum()
+    elif stim_type == 'grating':
+        L = cm.shape[0]
+        for i in range(L):
+            for j in range(L):
+                # actual = i, predicted = j
+                dist = distance_table[abs(j-i)]
+                pred = cm[i][j]
+                goodness += (pred * (float(max_dt - dist) / max_dt))
+        goodness /= np.sum(cm)
+    return goodness
+
+
+def decimated_movies(movies, q):
+    return [decimate(m, q, axis=2) for m in movies]
+
+def decimated_responses(rsps, q):
+    dec_rsps = deepcopy(rsps)
+    dec_rsps.data = decimate(dec_rsps.data, q, axis=2)
+    return dec_rsps
 
 ################################################################################
 ################################################################################
-exp_type = 'natural'
+exp_type = 'grating'
 if exp_type == 'natural':
     from src.params.naturalmovies.datafile_params import PLOTS_DIR
     from src.params.naturalmovies.stimulus_params import CA_SAMPLING_RATE
@@ -128,21 +147,20 @@ elif exp_type == 'grating':
 
 movie_type = 'movie'
 downsample_factor = 4
-n_lag = 13
-n_clusters = 4
-n_components = 64
-split_type = 'loo'
-model_name = 'linear-regression'
-model_type = 'reverse'
-regularisation = None
+split_type = 'even'
+n_clusters = 3
 
 responses = load_responses(exp_type)
 movies = load_movies(exp_type, movie_type, downsample_factor=downsample_factor)
 
+"""
 train_test_splits = map(lambda r: train_test_split(r, movies, split_type,
                                                    train_frac=0.7,
                                                    to_leave_out=0),
 
+                        responses)
+"""
+train_test_splits = map(lambda r: train_test_split_grating(r,[0,4,8,12]),
                         responses)
 
 for i, response in enumerate(responses):
@@ -150,30 +168,16 @@ for i, response in enumerate(responses):
     print 'Mouse %s' % name
     
     print 'Splitting out training and test data...'
-    tr_rsp, te_rsp, tr_mov, te_mov = train_test_splits[i]
+    # tr_rsp, te_rsp, tr_mov, te_mov = train_test_splits[i]
+    tr_rsp, te_rsp = train_test_splits[i]
+    
+    print 'Fitting template-matching model...'
+    model = AverageTemplate(n_clusters)
+    model.fit(decimated_responses(tr_rsp, 5))
 
-    print 'Fitting model parameters for %s %s...' % (model_type, model_name)
-    if model_name == 'cca':
-        model = LinearReconstruction('cca', model_type, n_lag=n_lag,
-                                     n_clusters=n_clusters,
-                                     n_components = n_components)
-    elif model_name == 'linear-regression':
-        model = LinearReconstruction('linear-regression', model_type,
-                                     n_clusters=n_clusters, n_lag=n_lag,
-                                     regularisation=regularisation)
-
-    model.fit(tr_rsp, tr_mov)
-
-    print 'Reconstructing stimulus movies...'
-    pred_movies = model.predict(te_rsp)
-    ssims = model.reconstruction_quality(pred_movies, te_mov)
-
-    print 'Dumping reconstructed movies...'
-    dump_dir = os.path.join(PLOTS_DIR, 'reconstruction',
-                            model_name, model_type, 'split-%s' % split_type,
-                            '%s-D%d-L%d'%(movie_type,downsample_factor,n_lag),
-                            'mouse-%s' % name)
-    if not os.path.isdir(dump_dir):
-        os.makedirs(dump_dir)
-
-    dump_reconstruction(pred_movies, te_mov, ssims, dump_dir)
+    print 'Decoding movie indices from test responses...'
+    # pred_movies = model.predict(decimated_responses(te_rsp, 5))
+    pred_movies = model.predict2(decimated_responses(te_rsp, 5))
+    # cm = confusion_matrix(pred_movies)
+    cm = confusion_matrix_grating(pred_movies)
+    print cm, cm_goodness(cm, exp_type)

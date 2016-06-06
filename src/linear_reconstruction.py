@@ -11,6 +11,7 @@ from scipy.spatial.distance import squareform
 import scipy.cluster.hierarchy as hac
 
 from correlation import signal_correlation, noise_correlation
+from clustering import NeuronClustering
 
 class LinearReconstruction:
     def __init__(self, model_name, model_type, n_clusters=None,
@@ -19,6 +20,7 @@ class LinearReconstruction:
         self.model_name = model_name
         self.model_type = model_type
         self.n_clusters = n_clusters
+        self.clustering = NeuronClustering(self.n_clusters, signal_correlation)
         
         if model_name == 'cca':
             self.n_components = n_components
@@ -45,25 +47,11 @@ class LinearReconstruction:
         self.LY, self.LX, n_samples = stim[0].shape
         n_px = self.LY * self.LX
 
-        # Cluster the responses.
-        corr = signal_correlation(rsp.data)
-        dists = squareform(0.5 * (1.0 - corr))
-        linkage = hac.linkage(dists, method='complete')
-        cl_idxs = hac.fcluster(linkage, self.n_clusters, criterion='maxclust')
-        self.cl_idxs = cl_idxs
-        
+        self.clustering.fit(rsp.data)
+        dn_rsp_data = self.clustering.divnorm(rsp.data)
+
         # Average the response across trials.
-        avg_rsp = np.mean(rsp.data, axis=3)
-
-        # Normalise the responses by the sum of the responses in the clusters.
-        for i_c in range(1, self.n_clusters + 1):
-            idxs = [i for i in range(n_cells) if cl_idxs[i] == i_c]
-            if len(idxs) == 0:
-                continue
-
-            for t in range(n_samples):
-                for i_s in range(n_stim):
-                    avg_rsp[i_s,idxs,t] /= avg_rsp[i_s,idxs,t].sum()
+        avg_rsp = np.mean(dn_rsp_data, axis=3)
 
         # Remove the baseline response for all cells.
         self.baseline_rsps = np.zeros(n_cells)
@@ -97,7 +85,7 @@ class LinearReconstruction:
                     row = i_s * n_samples + i_t
                     X[row,:] = avg_rsp[i_s,:,i_t]
                     Y[row,:] = p_stim[i_s][:,:,i_t:i_t+self.n_lag].flatten()
-
+        
         self.model.fit(X, Y)
 
     def predict(self, rsp):
@@ -112,18 +100,7 @@ class LinearReconstruction:
         reconstructed = []
         
         r = rsp.data
-
-        # Normalise response using the cluster responses
-        for i_c in range(1, self.n_clusters + 1):
-            idxs = [i for i in range(n_cells) if self.cl_idxs[i] == i_c]
-            if len(idxs) == 0:
-                continue
-
-            for t in range(n_samples):
-                for i_s in range(n_stim):
-                    for i_tr in range(n_trials):
-                        r[i_s,idxs,t,i_tr] /= r[i_s,idxs,t,i_tr].sum()
-        
+        r = self.clustering.divnorm(r)
         r = np.pad(r, ((0,0), (0,0), (0,self.n_lag-1), (0,0)),
                    mode='constant')
 

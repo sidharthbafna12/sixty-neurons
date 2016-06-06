@@ -43,6 +43,7 @@ import matplotlib.animation as mani
 r1 = 5
 r2 = 2
 
+"""
 # Reading in the stimulus movies.
 movies = []
 movies_dog = []
@@ -78,6 +79,7 @@ movies_ddt = [np.dstack((movie[:,:,0:1], np.diff(movie, axis=2)))
               for movie in movies]
 movies_dog_ddt = [np.dstack((movie[:,:,0:1], np.diff(movie, axis=2)))
                   for movie in movies_dog]
+"""
 
 # Time to dump them.
 # First outputting each frame as png or something.
@@ -141,7 +143,7 @@ def dump_movies(VIDEO_OUTPUT_DIR, movies, movies_dog, movies_ddt,
             
             a = mani.FuncAnimation(fig, update_img, T, repeat=False,
                                    interval=1000.0/CA_SAMPLING_RATE)
-            writer = mani.writers['ffmpeg'](fps=CA_SAMPLING_RATE)
+            writer = mani.writers['avconv'](fps=CA_SAMPLING_RATE)
             a.save(os.path.join(VIDEO_OUTPUT_DIR, '%d' % i, name),
                    writer=writer, dpi=100)
             plt.close()
@@ -151,8 +153,10 @@ def dump_movies(VIDEO_OUTPUT_DIR, movies, movies_dog, movies_ddt,
         write_mp4(movie_ddt, 'movie_ddt.mp4')
         write_mp4(movie_dog_ddt, 'movie_dog_ddt.mp4')
 
+"""
 dump_movies('data/natural-movie-video-jneuro', movies, movies_dog,
             movies_ddt, movies_dog_ddt)
+"""
 
 ################################################################################
 """ Grating scenes
@@ -174,7 +178,7 @@ movies = [grating_movie(dirn, L) for dirn in DIRECTIONS]
 windows = [np.dot(np.kaiser(movie.shape[0],2.).reshape((movie.shape[0],1)),
                   np.kaiser(movie.shape[1],2.).reshape((movie.shape[1],1)).T)
            for movie in movies]
-movies_dog = [np.dstack([window*(gfilt(movie[:,:,t],5)-gfilt(movie[:,:,t],2))
+movies_dog = [np.dstack([window*(gfilt(movie[:,:,t],r1)-gfilt(movie[:,:,t],r2))
                          for t in range(L)])
               for window, movie in zip(windows, movies)]
 movies_ddt = [np.dstack((movie[:,:,0:1], np.diff(movie, axis=2)))

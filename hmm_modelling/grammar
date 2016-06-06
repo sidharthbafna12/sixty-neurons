@@ -1,0 +1,3 @@
+$action = add_teabag | cut_fruit | take_knife | take_cup | add_saltnpepper |
+          pour_coffee | peel_fruit | pour_milk | crack_egg | fry_egg;
+($action)

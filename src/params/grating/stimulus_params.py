@@ -12,9 +12,9 @@ CA_SAMPLING_RATE = 20 # in Hz
 L_RSP = GRATING_DURATION * CA_SAMPLING_RATE
 
 # TODO : Remove this later.
-PIXELS_PER_DEGREE = 2.0 # 1 degree of visual space ~ 21.3 pixels on the screen
-
+PIXELS_PER_DEGREE = 5.0 # 1 degree of visual space ~ 21.3 pixels on the screen
 # PIXELS_PER_DEGREE = 21.3 # 1 degree of visual space ~ 21.3 pixels on the screen
+
 CPD = 0.03 # cycles per degree
 SPATIAL_FREQUENCY = CPD / PIXELS_PER_DEGREE # cycles per pixel
 TEMPORAL_FREQUENCY = 2.0 / CA_SAMPLING_RATE #2.0Hz->(temporal) cycles per sample

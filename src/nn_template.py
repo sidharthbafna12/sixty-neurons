@@ -1,4 +1,3 @@
-#!/usr/bin/python
 """ nn_template.py
     Template-matching algorithm to classify a given V1 response as coming from
     one of the stimulus types seen in the training set responses.

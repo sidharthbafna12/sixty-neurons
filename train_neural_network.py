@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-""" reconstruction.py
-    A more refined version of the reconstruction pipeline implemented in
-    linear_reconstruction.py.
+""" train_neural_network.py
 """
 
 import numpy as np
@@ -11,7 +9,14 @@ import os, time
 from copy import deepcopy
 
 from src.response import Response
-from src.linear_reconstruction import LinearReconstruction
+from src.avg_template import AverageTemplate
+
+from pyfann import libfann as fann
+
+from scipy.signal import decimate
+
+import logging
+logging.getLogger().setLevel(logging.INFO)
 
 def load_responses(exp_type):
     if exp_type == 'grating':
@@ -72,49 +77,87 @@ def train_test_split(responses, movies, split_type,
 
     return train_rsps, test_rsps, train_movies, test_movies
 
-def dump_reconstruction(pred_stim, act_stim, ssims, basedir):
-    assert len(pred_stim) == len(act_stim)
-    n_movies = len(pred_stim)
-    for i in range(n_movies):
-        num_trials = len(pred_stim[i])
-        for i_tr in range(num_trials):
-            dir_path = os.path.join(basedir, 'movie-%s' % str(i),
-                                    'trial-%s' % str(i_tr))
-            if not os.path.isdir(dir_path):
-                os.makedirs(dir_path)
+def decimated_movies(movies, q):
+    return [decimate(m, q, axis=2) for m in movies]
 
-            left_movie = pred_stim[i][i_tr]
-            right_movie = act_stim[i]
-            T = left_movie.shape[2]
-            for t in range(T):
-                l_img = left_movie[:,:,t]
-                r_img = right_movie[:,:,t]
+def decimated_responses(rsps, q):
+    dec_rsps = deepcopy(rsps)
+    dec_rsps.data = decimate(dec_rsps.data, q, axis=2)
+    return dec_rsps
 
-                fig = plt.figure()
-                plt.title('Frame %d (SSIM %.3f)' % (t, ssims[i][i_tr][t]))
-                plt.axis('off')
+def fit_NN(tr_movies, tr_responses, val_movies, val_responses, n_lag):
+    p_movs = [np.pad(m, ((0,0), (0,0), (n_lag-1,0)), mode='constant')
+              for m in tr_movies]
+    
+    tr_data = tr_responses.data
+    mean_rsps = []
+    for i in range(tr_data.shape[1]):
+        mean_rsps.append(tr_data[:,i,:,:].mean())
+        tr_data[:,i,:,:] -= tr_data[:,i,:,:].mean()
 
-                sp = fig.add_subplot(1, 2, 1)
-                plt.imshow(l_img, cmap='gray', interpolation='nearest')
-                plt.colorbar(orientation='horizontal',
-                             ticks=[l_img.min(), l_img.max()])
-                plt.axis('off')
+    LY, LX, T = tr_movies[0].shape
+    S, N, T, R = tr_data.shape
 
-                sp = fig.add_subplot(1, 2, 2)
-                plt.imshow(r_img, cmap='gray', interpolation='nearest')
-                plt.colorbar(orientation='horizontal',
-                             ticks=[r_img.min(), r_img.max()])
-                plt.axis('off')
+    num_input = LY*LX*n_lag
+    num_output = N
+    num_hidden = 1000
+    epochs = 50
+    epochs_between_reports = 1
+    desired_error = 0.25
+    learning_rate = 0.7
+    connection_rate = 0.1
 
-                fig.savefig(os.path.join(dir_path, '%d.png' % t))
-                plt.close()
+    train_DS = []
+    val_DS = []
 
-            # dump video as well
-            command = 'avconv -framerate %d -i %s/%%d.png %s/video.mp4'\
-                    % (CA_SAMPLING_RATE, dir_path, dir_path)
-            print command
-            os.system(command)
-            time.sleep(0.5)
+    for i_s in range(S):
+        # Training data
+        for i_tr in range(R):
+            for i_t in range(T):
+                inp_tr = p_movs[i_s][:,:,i_t:i_t+n_lag].flatten()
+                out_tr = tr_data[i_s,:,i_t,i_tr]
+                train_DS.append([inp_tr, out_tr])
+
+    X_tr, Y_tr = zip(*train_DS)
+
+    p_movs = [np.pad(m, ((0,0), (0,0), (n_lag-1,0)), mode='constant')
+              for m in val_movies]
+    val_data = val_responses.data
+    for i in range(N):
+        val_data[:,i,:,:] -= mean_rsps[i]
+    S, N, T, R = val_data.shape
+    for i_s in range(S):
+        # Validation data
+        for i_tr in range(R):
+            for i_t in range(T):
+                inp_val = p_movs[i_s][:,:,i_t:i_t+n_lag].flatten()
+                out_val = val_data[i_s,:,i_t,i_tr]
+                val_DS.append([inp_val, out_val])
+    X_val, Y_val = zip(*val_DS)
+    
+    train_data = fann.training_data()
+    train_data.set_train_data(X_tr, Y_tr)
+
+    net = fann.neural_net()
+    net.create_sparse_array(connection_rate, (num_input,num_hidden,num_output))
+    net.set_learning_rate(learning_rate)
+    net.set_activation_function_output(fann.LINEAR)
+    net.set_activation_function_hidden(fann.SIGMOID_SYMMETRIC_STEPWISE)
+    net.train_on_data(train_data, epochs, epochs_between_reports, desired_error)
+
+    pred = np.zeros((len(Y_val), N))
+    errors = []
+    for i in range(len(Y_val)):
+        pred[i,:] = net.run(X_val[i])
+
+        err = np.absolute(pred[i,:] - Y_val[i])
+        err = err / (np.maximum(np.abs(pred[i,:]), np.abs(Y_val[i]))\
+                    + 0.00001)
+        errors.append(err)
+
+    print np.median(errors, axis=0)
+
+    return net
 
 ################################################################################
 ################################################################################
@@ -127,53 +170,33 @@ elif exp_type == 'grating':
     from src.params.grating.stimulus_params import CA_SAMPLING_RATE
 
 movie_type = 'movie'
-downsample_factor = 4
-n_lag = 13
-n_clusters = 4
-n_components = 64
-split_type = 'loo'
-model_name = 'linear-regression'
-model_type = 'reverse'
-regularisation = None
+spatial_downsample_factor = 4
+time_downsample_factor = 5
+n_lag = 3
+split_type = 'even'
 
 responses = load_responses(exp_type)
-movies = load_movies(exp_type, movie_type, downsample_factor=downsample_factor)
-
+movies = load_movies(exp_type, movie_type,
+                     downsample_factor=spatial_downsample_factor)
 train_test_splits = map(lambda r: train_test_split(r, movies, split_type,
                                                    train_frac=0.7,
                                                    to_leave_out=0),
 
                         responses)
 
+nns = []
 for i, response in enumerate(responses):
     name = response.name
     print 'Mouse %s' % name
     
     print 'Splitting out training and test data...'
-    tr_rsp, te_rsp, tr_mov, te_mov = train_test_splits[i]
+    tr_rsp, val_rsp, tr_mov, val_mov = train_test_splits[i]
+    
+    tr_rsp = decimated_responses(tr_rsp, time_downsample_factor)
+    val_rsp = decimated_responses(val_rsp, time_downsample_factor)
+    tr_mov = decimated_movies(tr_mov, time_downsample_factor)
+    val_mov = decimated_movies(val_mov, time_downsample_factor)
+    network = fit_NN(tr_mov, tr_rsp, val_mov, val_rsp, n_lag)
+    nns.append(network)
 
-    print 'Fitting model parameters for %s %s...' % (model_type, model_name)
-    if model_name == 'cca':
-        model = LinearReconstruction('cca', model_type, n_lag=n_lag,
-                                     n_clusters=n_clusters,
-                                     n_components = n_components)
-    elif model_name == 'linear-regression':
-        model = LinearReconstruction('linear-regression', model_type,
-                                     n_clusters=n_clusters, n_lag=n_lag,
-                                     regularisation=regularisation)
-
-    model.fit(tr_rsp, tr_mov)
-
-    print 'Reconstructing stimulus movies...'
-    pred_movies = model.predict(te_rsp)
-    ssims = model.reconstruction_quality(pred_movies, te_mov)
-
-    print 'Dumping reconstructed movies...'
-    dump_dir = os.path.join(PLOTS_DIR, 'reconstruction',
-                            model_name, model_type, 'split-%s' % split_type,
-                            '%s-D%d-L%d'%(movie_type,downsample_factor,n_lag),
-                            'mouse-%s' % name)
-    if not os.path.isdir(dump_dir):
-        os.makedirs(dump_dir)
-
-    dump_reconstruction(pred_movies, te_mov, ssims, dump_dir)
+    network.save('./output/nets/%d.net' % i)
