@@ -6,9 +6,9 @@ import numpy as np
 
 from scipy.signal import resample, decimate
 
-basedir = './data/original-data/Breakfast_Final/vid/'
-labeldir = './data/original-data/Breakfast_Final/lab_raw/'
-outdir = './data/breakfast_sorted'
+basedir = './data/Breakfast_Final/vid/'
+labeldir = './data/Breakfast_Final/lab_raw/'
+outdir = './temp/breakfast_sorted'
 spatial_downsample_factor = 4
 
 selected_actions = ['pour_milk', 'pour_coffee',

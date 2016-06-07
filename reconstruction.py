@@ -10,38 +10,9 @@ import os, time
 
 from copy import deepcopy
 
+from src.io import load_responses, load_movies
 from src.response import Response
 from src.linear_reconstruction import LinearReconstruction
-
-def load_responses(exp_type):
-    if exp_type == 'grating':
-        from src.params.grating.datafile_params import DATA_DIR, MICE_NAMES
-        data_locs = [os.path.join(DATA_DIR,'%s_dir.npy'%c) for c in MICE_NAMES]
-        data = map(lambda (n, loc): Response(n, loc), zip(MICE_NAMES,data_locs))
-    elif exp_type == 'natural':
-        from src.params.naturalmovies.datafile_params import DATA_DIR
-        data_locs = [os.path.join(DATA_DIR, '%d.npy' % i) for i in range(11)]
-        data = [Response(str(i), data_locs[i]) for i in range(11)]
-
-    return data
-
-def load_movies(exp_type, movie_type, downsample_factor=1):
-    if exp_type == 'grating':
-        from src.params.grating.datafile_params import MOVIE_DIR
-        from src.params.grating.stimulus_params import N_MOVIES
-    elif exp_type == 'natural':
-        from src.params.naturalmovies.datafile_params import MOVIE_DIR
-        from src.params.naturalmovies.stimulus_params import N_MOVIES
-
-    if downsample_factor > 1:
-        movie_locs = [os.path.join(MOVIE_DIR, str(s), '%s_down' % movie_type,
-                                   '%d.npy' % downsample_factor)
-                      for s in range(N_MOVIES)]
-    else:
-        movie_locs = [os.path.join(MOVIE_DIR, str(s), '%s.npy' % movie_type)
-                      for s in range(N_MOVIES)]
-    movies = map(np.load, movie_locs)
-    return movies
 
 def train_test_split(responses, movies, split_type,
                      train_frac=None, to_leave_out=None):

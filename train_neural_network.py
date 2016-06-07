@@ -8,6 +8,8 @@ import os, time
 
 from copy import deepcopy
 
+from src.io import load_responses, load_movies
+from src.data_manip_utils import smooth_responses, train_test_split
 from src.response import Response
 from src.avg_template import AverageTemplate
 
@@ -17,73 +19,6 @@ from scipy.signal import decimate
 
 import logging
 logging.getLogger().setLevel(logging.INFO)
-
-def load_responses(exp_type):
-    if exp_type == 'grating':
-        from src.params.grating.datafile_params import DATA_DIR, MICE_NAMES
-        data_locs = [os.path.join(DATA_DIR,'%s_dir.npy'%c) for c in MICE_NAMES]
-        data = map(lambda (n, loc): Response(n, loc), zip(MICE_NAMES,data_locs))
-    elif exp_type == 'natural':
-        from src.params.naturalmovies.datafile_params import DATA_DIR
-        data_locs = [os.path.join(DATA_DIR, '%d.npy' % i) for i in range(11)]
-        data = [Response(str(i), data_locs[i]) for i in range(11)]
-
-    return data
-
-def load_movies(exp_type, movie_type, downsample_factor=1):
-    if exp_type == 'grating':
-        from src.params.grating.datafile_params import MOVIE_DIR
-        from src.params.grating.stimulus_params import N_MOVIES
-    elif exp_type == 'natural':
-        from src.params.naturalmovies.datafile_params import MOVIE_DIR
-        from src.params.naturalmovies.stimulus_params import N_MOVIES
-
-    if downsample_factor > 1:
-        movie_locs = [os.path.join(MOVIE_DIR, str(s), '%s_down' % movie_type,
-                                   '%d.npy' % downsample_factor)
-                      for s in range(N_MOVIES)]
-    else:
-        movie_locs = [os.path.join(MOVIE_DIR, str(s), '%s.npy' % movie_type)
-                      for s in range(N_MOVIES)]
-    movies = map(np.load, movie_locs)
-    return movies
-
-def train_test_split(responses, movies, split_type,
-                     train_frac=None, to_leave_out=None):
-    # Split the responses into a training and a test set.
-    # Either we take a fixed proportion of trials from all movie responses, or
-    # we leave out the response to one movie entirely.
-    # If the index of the movie to be left out is higher than the number of
-    # movies seen by the mouse, then we leave out the last movie instead of the
-    # number specified.
-    N_S, N_TR = responses.data.shape[0], responses.data.shape[3]
-    train_rsps = deepcopy(responses)
-    test_rsps = deepcopy(responses)
-    if split_type == 'even':
-        train_rsps.data = train_rsps.data[:,:,:,:int(train_frac*N_TR)]
-        test_rsps.data = test_rsps.data[:,:,:,int(train_frac*N_TR):]
-        train_movies = movies[:N_S]
-        test_movies = movies[:N_S]
-    elif split_type == 'loo': # leave-one-out
-        if to_leave_out >= N_S:
-            print 'Can\'t leave out movie %d as N_S is %d, dropping %d '\
-                  'instead.' % (to_leave_out, N_S, N_S-1)
-            to_leave_out = N_S - 1
-        s_range = np.array(range(to_leave_out) + range(to_leave_out+1,N_S))
-        train_rsps.data = train_rsps.data[s_range,:,:,:]
-        test_rsps.data = test_rsps.data[to_leave_out:to_leave_out+1,:,:,:]
-        train_movies = [movies[s] for s in s_range]
-        test_movies = [movies[to_leave_out]]
-
-    return train_rsps, test_rsps, train_movies, test_movies
-
-def decimated_movies(movies, q):
-    return [decimate(m, q, axis=2) for m in movies]
-
-def decimated_responses(rsps, q):
-    dec_rsps = deepcopy(rsps)
-    dec_rsps.data = decimate(dec_rsps.data, q, axis=2)
-    return dec_rsps
 
 def fit_NN(tr_movies, tr_responses, val_movies, val_responses, n_lag):
     p_movs = [np.pad(m, ((0,0), (0,0), (n_lag-1,0)), mode='constant')
@@ -146,34 +81,21 @@ def fit_NN(tr_movies, tr_responses, val_movies, val_responses, n_lag):
     net.train_on_data(train_data, epochs, epochs_between_reports, desired_error)
 
     pred = np.zeros((len(Y_val), N))
-    errors = []
     for i in range(len(Y_val)):
         pred[i,:] = net.run(X_val[i])
-
-        err = np.absolute(pred[i,:] - Y_val[i])
-        err = err / (np.maximum(np.abs(pred[i,:]), np.abs(Y_val[i]))\
-                    + 0.00001)
-        errors.append(err)
-
-    print np.median(errors, axis=0)
+    print mean_absolute_error(np.array(Y_val), pred)
 
     return net
 
 ################################################################################
 ################################################################################
 exp_type = 'natural'
-if exp_type == 'natural':
-    from src.params.naturalmovies.datafile_params import PLOTS_DIR
-    from src.params.naturalmovies.stimulus_params import CA_SAMPLING_RATE
-elif exp_type == 'grating':
-    from src.params.grating.datafile_params import PLOTS_DIR
-    from src.params.grating.stimulus_params import CA_SAMPLING_RATE
-
 movie_type = 'movie'
 spatial_downsample_factor = 4
-time_downsample_factor = 5
-n_lag = 3
+# time_downsample_factor = 5
+n_lag = 6
 split_type = 'even'
+saved_nns_dir = './temp/nets'
 
 responses = load_responses(exp_type)
 movies = load_movies(exp_type, movie_type,
@@ -181,7 +103,6 @@ movies = load_movies(exp_type, movie_type,
 train_test_splits = map(lambda r: train_test_split(r, movies, split_type,
                                                    train_frac=0.7,
                                                    to_leave_out=0),
-
                         responses)
 
 nns = []
@@ -192,11 +113,10 @@ for i, response in enumerate(responses):
     print 'Splitting out training and test data...'
     tr_rsp, val_rsp, tr_mov, val_mov = train_test_splits[i]
     
-    tr_rsp = decimated_responses(tr_rsp, time_downsample_factor)
-    val_rsp = decimated_responses(val_rsp, time_downsample_factor)
-    tr_mov = decimated_movies(tr_mov, time_downsample_factor)
-    val_mov = decimated_movies(val_mov, time_downsample_factor)
+    tr_rsp = smooth_responses(tr_rsp)
+    val_rsp = smooth_responses(val_rsp)
+
     network = fit_NN(tr_mov, tr_rsp, val_mov, val_rsp, n_lag)
     nns.append(network)
 
-    network.save('./output/nets/%d.net' % i)
+    network.save(os.path.join(saved_nns_dir, '%d.net' % i))

@@ -1,8 +1,7 @@
 # Stimulus parameters.
 import numpy as np
 
-N_MOVIES = 5
-N_TRIALS = 10
+N_MOVIES = 5 * 5 # K0, K1, K1.5, K2 and original
 STIMULUS_DURATION = 4 # in seconds
 MOVIE_REFRESH_RATE = 60 # in Hz
 STIMULUS_LENGTH = MOVIE_REFRESH_RATE * STIMULUS_DURATION

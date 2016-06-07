@@ -10,6 +10,9 @@ from pyfann import libfann as fann
 from src.hmm_classifier import HMMClassifier
 from src.dtw_nn import DTWClassifier
 
+from src.data_manip_utils import confusion_matrix, confusion_matrix_grating
+from src.data_manip_utils import cm_goodness
+
 def read_videos(video_dir, spatial_downsample_factor=4):
     videos = []
     for action in os.listdir(video_dir):
@@ -57,26 +60,6 @@ def confusion_matrix_grating(pred,train_classes):
             cm[i_te][train_classes[p]] += 1
     return cm
 
-def cm_goodness(cm, stim_type):
-    goodness = 0
-
-    # distance_table = [0,1,2,3,4,5,6,7,8,7,6,5,4,3,2,1]
-    distance_table = [0,1,2,3,4,3,2,1,0,1,2,3,4,3,2,1]
-    max_dt = max(distance_table)
-
-    if stim_type == 'grating':
-        L = cm.shape[0]
-        for i in range(L):
-            for j in range(L):
-                # actual = i, predicted = j
-                dist = distance_table[abs(j-i)]
-                pred = cm[i][j]
-                goodness += (pred * (float(max_dt - dist) / max_dt))
-        goodness /= np.sum(cm)
-    else:
-        goodness = float(np.diag(cm).sum()) / cm.sum()
-    return goodness
-
 def get_v1_nns():
     nns = [fann.neural_net() for i in range(11)]
 
@@ -97,6 +80,7 @@ def transform(net, video, mean_rsp):
     for t in range(T):
         # print t, '/', T
         output[t,:] = net.run(p_video[:,:,t:t+n_lag].flatten()) + mean_rsp
+    output = np.maximum(output, 0)
     return output
 
 def train_test_split(features):
@@ -170,12 +154,14 @@ else:
 predictions = []
 for i, net_features in enumerate(features):
     print 'Using features from network %d...' % i
-    # tr_features, te_features = train_test_split(net_features)
-    tr_features, te_features = train_test_split_grating(net_features,
-                                                        grating_train_idxs)
+    if stim_type == 'grating':
+        tr_features, te_features = train_test_split_grating(net_features,
+                                                            grating_train_idxs)
+    else:
+        tr_features, te_features = train_test_split(net_features)
 
     print 'Creating classifier...'
-    classifier = DTWClassifier(3)
+    classifier = DTWClassifier(10)
     classifier.fit(tr_features)
 
     print 'Prediction from simulated responses...'

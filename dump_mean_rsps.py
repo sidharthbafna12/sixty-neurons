@@ -9,6 +9,9 @@ from copy import deepcopy
 from src.response import Response
 from scipy.signal import decimate
 
+from src.io import load_responses
+from src.data_manip_utils import train_test_split
+
 def load_responses(exp_type):
     if exp_type == 'grating':
         from src.params.grating.datafile_params import DATA_DIR, MICE_NAMES

@@ -17,12 +17,15 @@ import os
 from scipy.spatial.distance import squareform
 import scipy.cluster.hierarchy as hac
 
+from src.io import load_responses
 from src.response import Response
 from src.reliability import reliability
 from src.correlation import signal_correlation, noise_correlation
 
 n_clusters = 3
 exp_type = 'natural'
+
+"""
 if exp_type == 'grating':
     from src.params.grating.datafile_params import *
     from src.params.grating.stimulus_params import *
@@ -33,7 +36,9 @@ elif exp_type == 'natural':
     from src.params.naturalmovies.stimulus_params import *
     data_locs = [os.path.join(DATA_DIR, '%d.npy' % i) for i in range(11)]
     data = [Response(str(i), data_locs[i]) for i in range(11)]
+"""
 
+data = load_responses(exp_type)
 for index, m in enumerate(data):
     print 'Mouse %s' % m.name
 
@@ -59,7 +64,8 @@ for index, m in enumerate(data):
     m.hac_idxs_nc = hac.dendrogram(m.linkage_nc)['leaves']
     hac_response_nc = m.data[:,m.hac_idxs_nc,:,:]
     m.noise_corr_hac = noise_correlation(hac_response_nc)
-
+    
+    """
     # Cluster reliability.
     # From signal correlations.
     m.cl_idxs_sc = hac.fcluster(m.linkage_sc, n_clusters, criterion='maxclust')
@@ -78,6 +84,7 @@ for index, m in enumerate(data):
         idxs = idxs[m.cl_idxs_nc == i]
         mean_cluster_rsp = m.data[:,idxs,:,:].mean(axis=1)
         m.nc_cluster_reliability[i,:] = reliability(mean_cluster_rsp)
+    """
 
     ############################################################################
     # Plotting
@@ -129,6 +136,7 @@ for index, m in enumerate(data):
                 bbox_inches='tight')
     plt.close()
 
+    """
     # Cluster reliabilities.
     for i in range(1, n_clusters+1):
         fig, ax = plt.subplots()
@@ -152,4 +160,4 @@ for index, m in enumerate(data):
                                  '%d.eps' % i),
                     bbox_inches='tight')
         plt.close()
-
+    """

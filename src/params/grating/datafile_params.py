@@ -4,8 +4,9 @@
 import os
 
 MICE_NAMES = ['A','B','C','D','E','F','G1','G2','G3','H','I','J','K']
-DATA_DIR = 'data/grating-npy'
-MOVIE_DIR = 'data/grating-movie-video'
+MAT_DATA_DIR = 'data/grating-mat/'
+DATA_DIR = 'temp/grating-npy'
+MOVIE_DIR = 'temp/grating-movie-video'
 PLOTS_DIR = 'plots/grating'
 
 """

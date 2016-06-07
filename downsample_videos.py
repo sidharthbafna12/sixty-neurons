@@ -19,14 +19,12 @@ movie_arr_names = ['movie', 'movie_dog', 'movie_ddt', 'movie_dog_ddt']
 def load_downsample_and_dump(base_dir, N, movie_name, arr_name):
     MOV_ARR_DIRS= [os.path.join(base_dir, str(i)) for i in range(N)]
     movies = [np.load(os.path.join(d, arr_name + '.npy')) for d in MOV_ARR_DIRS]
-    downsampled_movies = [[decimate(decimate(m, 2**p, axis=0, ftype='fir'),
-                                    2**p, axis=1, ftype='fir')
-                           for m in movies]
-                          for p in range(1, 5)]
-    for i_p, ms in enumerate(downsampled_movies):
+    for i_p in range(5):
         p = i_p + 1
         print 'Downsampling factor %d:' % 2**p
-        for i, m in enumerate(ms):
+        for i, movie in enumerate(movies):
+            m = decimate(decimate(movie, 2**p, axis=0), 2**p, axis=1)
+
             print 'Saving %s %s %d...' % (movie_name, arr_name, i)
             if not os.path.isdir(os.path.join(base_dir,str(i),
                                               arr_name+'_down')):
@@ -35,14 +33,16 @@ def load_downsample_and_dump(base_dir, N, movie_name, arr_name):
             print 'Saved.'
 
 # Reading the grating movies first.
-base_dir = './data/grating-movie-video/'
-for movie_arr_name in movie_arr_names:
-    load_downsample_and_dump(base_dir,len(DIRECTIONS),'grating',movie_arr_name)
-
+from src.params.grating.datafile_params import MOVIE_DIR
 """
+print 'Grating movies...'
+for movie_arr_name in movie_arr_names[:1]:
+    load_downsample_and_dump(MOVIE_DIR,len(DIRECTIONS),'grating',movie_arr_name)
+"""
+
 ################################################################################
 # Now the natural scene movies.
-base_dir = './data/natural-movie-video-jneuro/'
-for movie_arr_name in movie_arr_names:
-    load_downsample_and_dump(base_dir, N_MOVIES, 'natural', movie_arr_name)
-"""
+from src.params.naturalmovies.datafile_params import MOVIE_DIR
+print 'Natural scene movies...'
+for movie_arr_name in movie_arr_names[:1]:
+    load_downsample_and_dump(MOVIE_DIR, N_MOVIES, 'natural', movie_arr_name)
