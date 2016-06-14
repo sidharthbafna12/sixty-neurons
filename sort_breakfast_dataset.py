@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 
 import shutil, os
-import cv2
+# import cv2
+
+import imageio
+os.environ['IMAGEIO_FFMPEG_EXE'] = '/usr/local/bin/ffmpeg'
 import numpy as np
 
 from scipy.signal import resample, decimate
+import time
 
 basedir = './data/Breakfast_Final/vid/'
 labeldir = './data/Breakfast_Final/lab_raw/'
@@ -18,6 +22,10 @@ selected_actions = ['pour_milk', 'pour_coffee',
                     'add_saltnpepper', 'add_teabag']
 selected_cams = ['cam01']
 
+def cvtColorToGray(img):
+    return np.dot(img, [0.21, 0.72, 0.07])
+
+num_files_out = 0
 for dir_name in os.listdir(basedir):
     if not os.path.isdir(os.path.join(basedir, dir_name)):
         continue
@@ -34,9 +42,10 @@ for dir_name in os.listdir(basedir):
             filepath = os.path.join(basedir, dir_name, cd, name)
             labelpath = os.path.join(labeldir, dir_name,
                                      name.replace('.avi', '.coarse'))
-            print '%s %s' % (cd, name)
 
-            cap = cv2.VideoCapture(filepath)
+            # cap = VideoCapture(filepath)
+            cap = imageio.get_reader(filepath)
+            print '%s %s : %d frames' % (cd, name, cap.get_length())
 
             # Find frame numbers.
             frame_nums = []
@@ -52,8 +61,12 @@ for dir_name in os.listdir(basedir):
                             continue
 
                         start, end = map(int, frame_range.split('-'))
+                        """
                         frames = [cv2.cvtColor(cap.read(i)[1],
                                                cv2.COLOR_RGB2GRAY)
+                                  for i in range(start, end)]
+                        """
+                        frames = [cvtColorToGray(cap.get_data(i))
                                   for i in range(start, end)]
 
                         clip_outdir = os.path.join(outdir, cd, action,
@@ -64,6 +77,9 @@ for dir_name in os.listdir(basedir):
                                                     name.replace('.avi',
                                                                  '_%d_%d'\
                                                                 % (start, end)))
+                        if os.path.exists(clip_outpath):
+                            continue
+
                         clip = np.dstack(frames)
                         
                         # Take the middle 256x256 from 320x240 input
@@ -87,6 +103,13 @@ for dir_name in os.listdir(basedir):
                         clip_out = resample(clip, n_samples_out, axis=2)
 
                         np.save(clip_outpath, clip_out)
+                        num_files_out += 1
+                        # time.sleep(0.5)
                     except Exception, e:
                         print e
                         pass
+                    finally:
+                        pass
+                # Loop ends
+            cap.close()
+print '%d files output' % num_files_out

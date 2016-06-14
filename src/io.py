@@ -58,8 +58,8 @@ def dump_movie(output_dir, movie, fps, movie_type=''):
     # Now the frames.
     T = movie.shape[2]
     for t in range(T):
-        scipy.misc.toimage(movie[:,:,t]).save(os.path.join(frames_dir_path,
-                                                           '%03d.png' % t))
+        scipy.misc.toimage(movie[:,:,t], cmin=-1.0, cmax=1.0)\
+                .save(os.path.join(frames_dir_path, '%03d.png' % t))
 
     # And an mp4 for completeness.
     def update_img(n):
@@ -73,7 +73,10 @@ def dump_movie(output_dir, movie, fps, movie_type=''):
     img = ax.imshow(movie[:,:,0], cmap='gray', interpolation='nearest')
     a = mani.FuncAnimation(fig, update_img, T, repeat=False,
                            interval=1000.0/fps)
-    writer = mani.writers['avconv'](fps=fps)
+    try:
+        writer = mani.writers['avconv'](fps=fps)
+    except KeyError:
+        writer = mani.writers['ffmpeg'](fps=fps)
 
     mp4_path = movie_path.replace('npy', 'mp4')
     a.save(mp4_path, writer=writer,dpi=100)

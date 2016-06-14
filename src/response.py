@@ -20,5 +20,5 @@ class Response:
         self.name = str(name)
         self.data = np.load(data_filename)
         self.attrs = attrs
-
+    
         assert len(self.data.shape) == 4

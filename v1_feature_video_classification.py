@@ -6,12 +6,14 @@ import numpy as np
 import os
 import cPickle as pickle
 
-from pyfann import libfann as fann
-from src.hmm_classifier import HMMClassifier
+# from pyfann import libfann as fann
+# from src.hmm_classifier import HMMClassifier
 from src.dtw_nn import DTWClassifier
 
 from src.data_manip_utils import confusion_matrix, confusion_matrix_grating
 from src.data_manip_utils import cm_goodness
+
+from src.simulated_v1_response import transform, create_mlp_from_params
 
 def read_videos(video_dir, spatial_downsample_factor=4):
     videos = []
@@ -38,6 +40,7 @@ def read_features(features_dir):
         features.append(net_features)
     return features
 
+"""
 def confusion_matrix(pred):
     n_classes = len(pred)
     cm = np.zeros((n_classes, n_classes), dtype=int)
@@ -59,16 +62,25 @@ def confusion_matrix_grating(pred,train_classes):
         for p in pred[i]:
             cm[i_te][train_classes[p]] += 1
     return cm
+"""
 
-def get_v1_nns():
+def get_v1_nns(model_dir):
+    """
     nns = [fann.neural_net() for i in range(11)]
 
     paths = ['./output/nets/%d.net' % i for i in range(11)]
     for i, p in enumerate(paths):
         nns[i].create_from_file(p)
+    """
     
+    nns = []
+    for i in range(11):
+        with open(os.path.join(model_dir, 'mlp_%d' % i), 'rb') as f:
+            Wh, bh, Wo, bo = pickle.load(f)
+            nns.append(create_mlp_from_params(Wh, bh, Wo, bo, rectify=True))
     return nns
 
+"""
 def transform(net, video, mean_rsp):
     print video.shape
     n_lag = 3
@@ -82,6 +94,7 @@ def transform(net, video, mean_rsp):
         output[t,:] = net.run(p_video[:,:,t:t+n_lag].flatten()) + mean_rsp
     output = np.maximum(output, 0)
     return output
+"""
 
 def train_test_split(features):
     frac = 0.7
@@ -103,18 +116,19 @@ def dump_features(features, f_dir):
 
 stim_type = 'breakfast'
 spatial_downsample_factor = 4
-mean_rsps_dir = './output/mean_rsps/'
+# mean_rsps_dir = './output/mean_rsps/'
+nets_dir = './temp/mlp-models'
 
 if stim_type == 'breakfast':
-    video_dir = './data/breakfast_sorted/cam01/'
-    features_dir = './output/video_features'
-    predictions_dir = './output/predictions'
+    video_dir = './temp/breakfast_sorted/cam01/'
+    features_dir = './temp/video_features'
+    predictions_dir = './temp/predictions'
 else:
     grating_train_idxs = range(0, 16, 4)
-    grating_dirs = [os.path.join('./data/grating-movie-video', str(i))
+    grating_dirs = [os.path.join('./temp/grating-movie-video', str(i))
                     for i in range(16)]
-    features_dir = './output/video_features_grating'
-    predictions_dir = './output/predictions_grating'
+    features_dir = './temp/video_features_grating'
+    predictions_dir = './temp/predictions_grating'
 
 if os.path.isdir(features_dir):
     print 'Reading features from %s...' % features_dir
@@ -122,12 +136,14 @@ if os.path.isdir(features_dir):
 else:
     print 'Computing feature vector sequences...'
 
+    """
     print 'Retrieving mean firing rates...'
     mean_rsps = [np.load(os.path.join(mean_rsps_dir, '%d.npy' % p))
                  for p in range(len(os.listdir(mean_rsps_dir)))]
+    """
 
     print 'Retrieving the neural networks...'
-    nets = get_v1_nns()
+    nets = get_v1_nns(nets_dir)
     features = []
 
     for i, net in enumerate(nets):
@@ -140,8 +156,13 @@ else:
             videos = read_videos(video_dir, spatial_downsample_factor)
 
         print 'Applying the neural network (%d) transformation...' % i
+        """
         net.print_parameters()
         net_features = [[transform(net, video, mean_rsps[i])
+                         for video in class_videos]
+                        for class_videos in videos]
+        """
+        net_features = [[transform(net, video)
                          for video in class_videos]
                         for class_videos in videos]
 
