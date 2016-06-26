@@ -31,19 +31,31 @@ where the array now holds only the inferred spike rates and nothing else.
 
 --------------------------------------------------------------------------------
 
-# Experiments performed
+# Experiments
 ## Computing population response properties
-- Orientation tuning
-- Hierarchical agglomerative clustering
-- Reliability computation
-    - Effect of clustering
+- Orientation tuning : tuning.py
+- Hierarchical agglomerative clustering : clustering.py
+- Reliability computation : reliability.py
+    - Effect of clustering : currently hacked into reliability.py (TODO: fix)
 
 ## Decoding video identity on single-trial basis
-- Template matching
-- Comparison with other feature-extraction methods
-- Comparison with random projections
+- Using a nearest-neighbour approach : classify_single_trial.py
+
+## Classifying new video classes using simulated V1 responses
+- train_mlp_response_model.py : to fit a multilayer perceptron to V1 responses
+  using Theano.
+- compute_simulated_responses.py : running the MLP on unseen videos from the
+  breakfast dataset.
+- hmm/data_to_htk.py : converting the MLP output from .npy to .htk
+- hmm/create_mlf.py : splitting the simulated responses into a train and a test
+  set
+- hmm/run_hmms.py : running an HMM-based classification model on the simulated
+  responses, to verify the discrimination ability of the simulated V1 output.
+- Comparison with random projections : compute_random_projections.py, replacing
+  the computation in compute_simulated_responses.py. The rest of the pipeline
+  propceeds the same way.
 
 ## Reconstructing stimulus from recorded responses
 - Linear regression-based reconstruction (reverse correlation)
-    - Forward and backward models
-    - Effect of regularisation
+    - Forward and backward models : reconstruction.py
+    - Effect of regularisation : TODO

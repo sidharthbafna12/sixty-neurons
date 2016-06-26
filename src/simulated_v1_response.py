@@ -1,4 +1,10 @@
 """ simulated_v1_response.py
+    To compute the output of a multilayer perceptron for a given video.
+
+    Since the multilayer perceptron was trained to fit V1 responses to natural
+    movies, this is a simulated mouse V1 response to the movie supplied.
+
+    An MLP can also be created if its parameters are supplied.
 """
 
 import numpy as np
@@ -15,7 +21,7 @@ def transform(mlp, video):
     for t in range(T):
         x[t,:] = padded_video[:,:,t:t+n_lag].flatten()
     
-    X = theano.shared(x, name='X', borrow=True)
+    X = theano.shared(x.astype(np.float32), name='X', borrow=True)
     pred = theano.function([], mlp.y_pred,
             givens={mlp.hidden_layer.input : X})
 

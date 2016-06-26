@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+""" create_mlf.py
+    Splitting data for training and testing, initialising HMM models...
+"""
 
 import os
 import struct
@@ -6,12 +9,12 @@ import numpy as np
 import random
 
 import shutil
-f_dir = './video_features_htk/'
+f_dir = './video_features_htk/mlp-models-1000/'
 tr_scp_dir = './tr_scp'
 te_scp_dir = './te_scp'
 proto_dir = './protos'
 mlf_out_dir = './mlf_out/'
-n_states = 8
+n_states = 3
 train_fraction = 0.7
 
 for i in range(11):
@@ -39,7 +42,7 @@ te_files = []
 tr_mlf_lines = ['#!MLF!#']
 te_mlf_lines = ['#!MLF!#']
 
-n_dir = 'net0'
+n_dir = 'mlp_0'
 n_path = os.path.join(f_dir, n_dir)
 for c_dir in os.listdir(n_path):
     c_path = os.path.join(n_path, c_dir)
@@ -89,8 +92,8 @@ for n_dir in os.listdir(f_dir):
                             struct.unpack('>iihh', header)
                     n_features = vecsize / 4
 
-    n_tr_files = [f.replace('net0', n_dir) for f in tr_files]
-    n_te_files = [f.replace('net0', n_dir) for f in te_files]
+    n_tr_files = [f.replace('mlp_0', n_dir) for f in tr_files]
+    n_te_files = [f.replace('mlp_0', n_dir) for f in te_files]
     with open(os.path.join(tr_scp_dir, 'train_%s.scp' % n_dir), 'w') as of:
         of.write('\n'.join(n_tr_files))
     with open(os.path.join(te_scp_dir, 'test_%s.scp' % n_dir), 'w') as of:

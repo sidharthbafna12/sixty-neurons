@@ -1,6 +1,9 @@
 """ dtw_nn.py
     A nearest-neighbour classifier with the DTW algorithm used to compute the
     distance between sequences.
+
+    Computes distances only for a specified number of randomly sampled
+    sequences from each class.
 """
 
 import numpy as np
@@ -17,7 +20,9 @@ class DTWClassifier:
     
     def _d(self, r1, r2):
         return np.sum(np.abs(r1 - r2))
-
+    
+    """
+        Not being used now.
     def _dtw(self, s1, s2):
         N = s1.shape[0]
         M = s2.shape[0]
@@ -34,16 +39,15 @@ class DTWClassifier:
                 cost = self._d(s1[i-1,:], s2[j-1,:])
                 dist[i,j] = cost + min(dist[i-1,j],dist[i,j-1],dist[i-1,j-1])
         return dist[N,M]
+    """
 
     def fit(self, tr_features):
+        # tr_features is expected to be organised already; tr_features[i] should
+        # contain the training instances from class i.
         self.tr_seqs = tr_features
 
     def nearest(self, rsp):
         test_seq = rsp
-        """
-        all_dists = [[self._dtw(test_seq, r) for r in class_seqs]
-                     for class_seqs in self.tr_seqs]
-        """
         all_dists = [[fastdtw(test_seq, r, dist=euclidean)[0]
                       for r in random.sample(class_seqs, self.K)]
                      for class_seqs in self.tr_seqs]
@@ -51,6 +55,9 @@ class DTWClassifier:
         return np.argmin(min_dists)
 
     def predict(self, te_features):
+        # te_features is supposed to be organised already; it is expected to be
+        # a list of lists: te_features[i] contains the test samples whose true
+        # label is that of the ith class.
         final_predictions = []
 
         for rsp_set in te_features:

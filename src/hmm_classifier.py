@@ -1,6 +1,8 @@
 """ hmm_classifier.py
     Uses HMMs to classify neuronal responses as coming from one of many video
     classes.
+
+    Superseded by the HTK classifier in the project_root/hmm directory.
 """
 
 import numpy as np

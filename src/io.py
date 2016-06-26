@@ -1,4 +1,5 @@
 """ io.py
+    Handling file I/O for retrieving data, writing a 3D array as video, etc.
 """
 
 from response import Response

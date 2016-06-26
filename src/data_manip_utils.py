@@ -1,4 +1,5 @@
 """ data_manip_utils.py
+    Collection of utility functions to deal with the data.
 """
 
 import numpy as np
@@ -100,10 +101,6 @@ def smooth_responses(rsps, window_width=50, sigma=0.65):
     # Gaussian smoothing
     # Values taken from Rajeev's code.
     sm_rsps = deepcopy(rsps)
-    """
-    sm_rsps.data = np.convolve(rsps.data, gaussian(window_width, sigma),
-                               mode='same')
-    """
     sm_rsps.data = convolve1d(rsps.data, gaussian(window_width, sigma), axis=2)
     sm_rsps.data = np.maximum(sm_rsps.data, 0)
     return sm_rsps

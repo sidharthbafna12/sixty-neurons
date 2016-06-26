@@ -1,4 +1,13 @@
 """ nnet_regression.py
+    A Theano-based multilayer perceptron model to fit V1 responses to stimulus
+    videos.
+    
+    Sliding windows are expected to be computed already. These classes expect a
+    standard (n_samples, n_features)-shape kind of data representation.
+
+    A stochastic gradient descent with minibatches is implemented in
+    RegressionModel, or rather copied over from the Theano tutorials at
+    deeplearning.net.
 """
 
 import numpy as np
@@ -9,8 +18,8 @@ import timeit
 
 def shared_dataset(data_xy, borrow=True):
     x, y = data_xy
-    sh_x = theano.shared(x, borrow=borrow)
-    sh_y = theano.shared(y, borrow=borrow)
+    sh_x = theano.shared(x.astype(np.float32), borrow=borrow)
+    sh_y = theano.shared(y.astype(np.float32), borrow=borrow)
     return sh_x, sh_y
 
 class LinearLayer(object):
@@ -289,5 +298,4 @@ class RegressionModel:
               % (best_validation_loss, best_iter + 1, test_score)
 
         print 'The code ran for %.2fm' % ((end_time - start_time) / 60.)
-
-
+        return test_score

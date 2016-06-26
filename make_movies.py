@@ -8,6 +8,9 @@
         - First-order differencing applied on the original movie along time
           axis.
         - First-order differencing along time axis on the DoG-filtered movie.
+
+    A window function is applied for the derivative movies to avoid issues at
+    the edges.
 """
 
 ################################################################################
@@ -50,6 +53,7 @@ for i, p in enumerate(MAT_MOVIE_LOCS):
     movie= scipy.io.loadmat(p,struct_as_record=False,squeeze_me=True)['movnew']
 
     # Resample to 20 Hz (MOVIE_REFRESH_RATE / MOVIE_DOWNSAMPLE_FACTOR).
+    # Done because Rajeev's J. Neuro paper did it.
     movie_d = movie[:,:,::MOVIE_DOWNSAMPLE_FACTOR]
     movie = np.zeros((movie_d.shape[0], movie_d.shape[1],
                       CA_SAMPLING_RATE * STIMULUS_DURATION))
@@ -59,33 +63,26 @@ for i, p in enumerate(MAT_MOVIE_LOCS):
         ii_d = int(float(ii)*float(MOVIE_REFRESH_RATE/MOVIE_DOWNSAMPLE_FACTOR)\
                    / CA_SAMPLING_RATE)
         movie[:,:,ii] = movie_d[:,:,ii_d]
-
     T = movie.shape[2]
+
     # Centre about 128, and normalise to [-1,1]
     movie = (movie - 128.0) / 128.0
     
-    print 'Dumping movie as npy/mp4/pngs...'
-    dump_movie(os.path.join(MOVIE_DIR, str(i)), movie, CA_SAMPLING_RATE)
-
-    """
     window = np.dot(np.kaiser(movie.shape[0],2.).reshape((movie.shape[0],1)),
                     np.kaiser(movie.shape[1],2.).reshape((movie.shape[1],1)).T)
     movie_dog=np.dstack([window*(gfilt(movie[:,:,t],r1)-gfilt(movie[:,:,t],r2))
                          for t in range(T)])
-    movies_dog.append(movie_dog)
+    movie_ddt = np.dstack((movie[:,:,0:1], np.diff(movie, axis=2)))
+    movie_dog_ddt = np.dstack((movie_dog[:,:,0:1], np.diff(movie_dog, axis=2)))
 
-movies_ddt = [np.dstack((movie[:,:,0:1], np.diff(movie, axis=2)))
-              for movie in movies]
-movies_dog_ddt = [np.dstack((movie[:,:,0:1], np.diff(movie, axis=2)))
-                  for movie in movies_dog]
-    """
-
-"""
-dump_movies(MOVIE_DIR, movies, CA_SAMPLING_RATE, '')
-dump_movies(MOVIE_DIR, movies_dog, CA_SAMPLING_RATE, 'dog')
-dump_movies(MOVIE_DIR, movies_ddt, CA_SAMPLING_RATE, 'ddt')
-dump_movies(MOVIE_DIR, movies_dog_ddt, CA_SAMPLING_RATE, 'dog_ddt')
-"""
+    print 'Dumping movie as npy/mp4/pngs...'
+    dump_movie(os.path.join(MOVIE_DIR, str(i)), movie, CA_SAMPLING_RATE)
+    dump_movie(os.path.join(MOVIE_DIR, str(i)), movie_dog, CA_SAMPLING_RATE,
+               movie_type='dog')
+    dump_movie(os.path.join(MOVIE_DIR, str(i)), movie_ddt, CA_SAMPLING_RATE,
+               movie_type='ddt')
+    dump_movie(os.path.join(MOVIE_DIR, str(i)), movie_dog_ddt, CA_SAMPLING_RATE,
+               movie_type='dog_ddt')
 
 ################################################################################
 """ Grating scenes
@@ -104,7 +101,7 @@ from src.grating import grating_movie
 
 L = GRATING_DURATION * CA_SAMPLING_RATE
 movies = [grating_movie(dirn, L) for dirn in DIRECTIONS]
-"""
+
 windows = [np.dot(np.kaiser(movie.shape[0],2.).reshape((movie.shape[0],1)),
                   np.kaiser(movie.shape[1],2.).reshape((movie.shape[1],1)).T)
            for movie in movies]
@@ -115,13 +112,13 @@ movies_ddt = [np.dstack((movie[:,:,0:1], np.diff(movie, axis=2)))
               for movie in movies]
 movies_dog_ddt = [np.dstack((movie[:,:,0:1], np.diff(movie, axis=2)))
                   for movie in movies_dog]
-"""
 
 # Time to dump them.
 for i, m in enumerate(movies):
     dump_movie(os.path.join(MOVIE_DIR, str(i)), m, CA_SAMPLING_RATE, '')
-"""
-dump_movies(MOVIE_DIR, movies_dog, CA_SAMPLING_RATE, 'dog')
-dump_movies(MOVIE_DIR, movies_ddt, CA_SAMPLING_RATE, 'ddt')
-dump_movies(MOVIE_DIR, movies_dog_ddt, CA_SAMPLING_RATE, 'dog_ddt')
-"""
+for i, m in enumerate(movies_dog):
+    dump_movie(os.path.join(MOVIE_DIR, str(i)), m, CA_SAMPLING_RATE, 'dog')
+for i, m in enumerate(movies_ddt):
+    dump_movie(os.path.join(MOVIE_DIR, str(i)), m, CA_SAMPLING_RATE, 'ddt')
+for i, m in enumerate(movies_dog_ddt):
+    dump_movie(os.path.join(MOVIE_DIR, str(i)), m, CA_SAMPLING_RATE, 'dog_ddt')

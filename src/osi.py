@@ -1,3 +1,9 @@
+""" osi.py
+    Computes the orientation selectivity index and preferred orientation using
+    the formulae in 'Robust quantification of orientation selectivity and
+    direction selectivity' by Mazurek, Kager and Van Hooser, 2014.
+"""
+
 import numpy as np
 from params.grating.stimulus_params import *
 from response import Response

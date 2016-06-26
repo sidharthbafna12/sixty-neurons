@@ -1,3 +1,7 @@
+""" grating.py
+    Generates sinusoidal drifting gratings according to the specified
+    parameters.
+"""
 import numpy as np
 
 from params.grating.stimulus_params import *

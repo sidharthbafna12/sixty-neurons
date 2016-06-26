@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """ tuning.py
     Compute orientation tuning curves, orientation selectivity index etc. from
     V1 responses to different sinusoidal grating orientations.
@@ -10,7 +10,11 @@ from src.params.grating.stimulus_params import *
 
 # Basics
 import numpy as np
+
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
+
 import os
 
 # Response tuning properties
@@ -20,6 +24,9 @@ from src.osi import selectivity_index, pref_direction
 
 # Reading in the data
 from src.response import Response
+
+# Preprocessing
+from src.data_manip_utils import smooth_responses
 
 locs_dirn = [os.path.join(DATA_DIR, '%s_dir.npy' % c) for c in MICE_NAMES]
 data_dirn = map(lambda (n, loc): Response(n, loc), zip(MICE_NAMES, locs_dirn))
@@ -31,6 +38,10 @@ sigma0 = 2 * np.pi / len(DIRECTIONS) # initial tuning curve width
 for index, (m_dir, m_ori) in enumerate(zip(data_dirn, data_ori)):
     name = MICE_NAMES[index]
     print 'Mouse %s' % name
+
+    # Smooth the responses first.
+    m_dir = smooth_responses(m_dir)
+    m_ori = smooth_responses(m_ori)
     
     N = m_dir.data.shape[1]
 
@@ -54,10 +65,9 @@ for index, (m_dir, m_ori) in enumerate(zip(data_dirn, data_ori)):
     m_ori.pref_orientation = pref_direction(m_ori.data, True)
     m_dir.dsi = selectivity_index(m_dir.data, orientation_flag=False)
     m_dir.pref_direction = pref_direction(m_dir.data, orientation_flag=False)
-    
+        
     ############################################################################
     # Plotting
-    print 'TODO : larger title font, errorbars'
     # Average response
     if not os.path.isdir(os.path.join(PLOTS_DIR,'orientation-tuning')):
         os.makedirs(os.path.join(PLOTS_DIR, 'orientation-tuning'))
@@ -117,17 +127,21 @@ for index, (m_dir, m_ori) in enumerate(zip(data_dirn, data_ori)):
 
     for i in range(N):
         fig, ax = plt.subplots()
-        fig.set_size_inches(15, 8)
-        fig.suptitle('Mouse %s Neuron %d Orientation Tuning Curve '
-                     '(R-squared %.2f)' % (name, i, m_dir.dg_fit_r2[i]))
-        plt.xlabel('Stimulus')
+        fig.set_size_inches(4, 2)
+        fig.suptitle('R-squared for fit : %.2f' % (m_dir.dg_fit_r2[i]))
+        plt.xlabel('Stimulus in degrees')
         plt.ylabel('Average Response')
         plt.scatter(DIRECTIONS, m_dir.avg[:,i], label='recorded')
-
+        plt.xticks([DIRECTIONS[0], DIRECTIONS[-1]])
+        plt.yticks(np.linspace(m_dir.avg[:,i].min(),m_dir.avg[:,i].max(),num=3))
+        
+        y_pred = wrapped_double_gaussian(dirs_rad, *m_dir.dg_fit_params[i])
+        y_err = np.absolute(m_dir.avg[:,i] - y_pred)
         dirs_rad_finer = np.linspace(np.min(dirs_rad),np.max(dirs_rad),num=200)
         plt.plot(np.degrees(dirs_rad_finer),
                 wrapped_double_gaussian(dirs_rad_finer,*m_dir.dg_fit_params[i]),
-                label='double Gaussian fit')
+                label='fit')
+        plt.errorbar(DIRECTIONS, y_pred, yerr=y_err, fmt=None, color='b')
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
@@ -137,15 +151,16 @@ for index, (m_dir, m_ori) in enumerate(zip(data_dirn, data_ori)):
                     bbox_inches='tight')
         plt.close()
 
-        # Polar plots showing average response to each orientation.
+        # Polar plots showing average response to each direction.
         fig = plt.figure()
+        fig.set_size_inches(3, 3)
         ax = plt.subplot(111, polar=True)
         ax.plot(dirs_rad,
                 m_dir.avg[:,i] / np.sum(m_dir.avg[:,i]),
                 color='r', linewidth=3)
         ax.set_rmax(0.5)
         ax.grid(True)
-        ax.set_title('Mouse %s Neuron %d orientation responses' \
+        ax.set_title('Mouse %s Neuron %d responses' \
                      % (name, i))
 
         fig.savefig(os.path.join(PLOTS_DIR,

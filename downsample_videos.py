@@ -34,11 +34,9 @@ def load_downsample_and_dump(base_dir, N, movie_name, arr_name):
 
 # Reading the grating movies first.
 from src.params.grating.datafile_params import MOVIE_DIR
-"""
 print 'Grating movies...'
 for movie_arr_name in movie_arr_names[:1]:
     load_downsample_and_dump(MOVIE_DIR,len(DIRECTIONS),'grating',movie_arr_name)
-"""
 
 ################################################################################
 # Now the natural scene movies.

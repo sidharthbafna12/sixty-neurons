@@ -1,47 +1,41 @@
 #!/usr/bin/env python
 """ reconstruction.py
-    A more refined version of the reconstruction pipeline implemented in
-    linear_reconstruction.py.
+    Applies linear models in an attempt to reconstruct video stimulus from
+    recorded V1 responses. 
+    
+    The 'reverse' models work with a sliding window applied to the responses,
+    with the length specified in n_lag. The model outputs the reconstruced video
+    frame corresponding to the window of responses.
+
+    'Forward' models apply the window on the movie, and map a movie window to a
+    snapshot of neural responses. The mapping is then inverted to get the movie
+    windows from all snapshots of responses, and from there the reconstructed
+    movies.
+
+    Training and test data are split in two ways:
+        - Test movie has no responses in training set. (Leave-one-out : 'loo')
+        - A set fraction of the responses to each movie are taken as the
+          training set (even split : 'even')
+
+    Spatially downsampled versions of the movies are used for faster computation
+    and to partly compensate for the paucity of data. Clustering of the neural
+    responses and regularisation of the filters obtained are also things to
+    consider, perhaps.
 """
 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import os, time
+from distutils.spawn import find_executable
 
 from copy import deepcopy
 
 from src.io import load_responses, load_movies
 from src.response import Response
 from src.linear_reconstruction import LinearReconstruction
-
-def train_test_split(responses, movies, split_type,
-                     train_frac=None, to_leave_out=None):
-    # Split the responses into a training and a test set.
-    # Either we take a fixed proportion of trials from all movie responses, or
-    # we leave out the response to one movie entirely.
-    # If the index of the movie to be left out is higher than the number of
-    # movies seen by the mouse, then we leave out the last movie instead of the
-    # number specified.
-    N_S, N_TR = responses.data.shape[0], responses.data.shape[3]
-    train_rsps = deepcopy(responses)
-    test_rsps = deepcopy(responses)
-    if split_type == 'even':
-        train_rsps.data = train_rsps.data[:,:,:,:int(train_frac*N_TR)]
-        test_rsps.data = test_rsps.data[:,:,:,int(train_frac*N_TR):]
-        train_movies = movies[:N_S]
-        test_movies = movies[:N_S]
-    elif split_type == 'loo': # leave-one-out
-        if to_leave_out >= N_S:
-            print 'Can\'t leave out movie %d as N_S is %d, dropping %d '\
-                  'instead.' % (to_leave_out, N_S, N_S-1)
-            to_leave_out = N_S - 1
-        s_range = np.array(range(to_leave_out) + range(to_leave_out+1,N_S))
-        train_rsps.data = train_rsps.data[s_range,:,:,:]
-        test_rsps.data = test_rsps.data[to_leave_out:to_leave_out+1,:,:,:]
-        train_movies = [movies[s] for s in s_range]
-        test_movies = [movies[to_leave_out]]
-
-    return train_rsps, test_rsps, train_movies, test_movies
+from src.data_manip_utils import train_test_split, smooth_responses
 
 def dump_reconstruction(pred_stim, act_stim, ssims, basedir):
     assert len(pred_stim) == len(act_stim)
@@ -51,8 +45,14 @@ def dump_reconstruction(pred_stim, act_stim, ssims, basedir):
         for i_tr in range(num_trials):
             dir_path = os.path.join(basedir, 'movie-%s' % str(i),
                                     'trial-%s' % str(i_tr))
+            dir_path_comp = os.path.join(dir_path, 'comparison')
+            dir_path_orig = os.path.join(dir_path, 'original')
+            dir_path_reco = os.path.join(dir_path, 'reconstructed')
             if not os.path.isdir(dir_path):
                 os.makedirs(dir_path)
+                os.makedirs(dir_path_comp)
+                os.makedirs(dir_path_orig)
+                os.makedirs(dir_path_reco)
 
             left_movie = pred_stim[i][i_tr]
             right_movie = act_stim[i]
@@ -61,6 +61,7 @@ def dump_reconstruction(pred_stim, act_stim, ssims, basedir):
                 l_img = left_movie[:,:,t]
                 r_img = right_movie[:,:,t]
 
+                # Showing comparison between predicted and actual.
                 fig = plt.figure()
                 plt.title('Frame %d (SSIM %.3f)' % (t, ssims[i][i_tr][t]))
                 plt.axis('off')
@@ -77,19 +78,55 @@ def dump_reconstruction(pred_stim, act_stim, ssims, basedir):
                              ticks=[r_img.min(), r_img.max()])
                 plt.axis('off')
 
-                fig.savefig(os.path.join(dir_path, '%d.png' % t))
+                fig.savefig(os.path.join(dir_path_comp, '%d.png' % t))
+                plt.close()
+
+                # Saving them individually as well.
+                # Reconstructed
+                fig = plt.figure()
+                fig.set_size_inches(2, 1.5)
+                plt.axis('off')
+
+                sp = fig.add_subplot(1, 1, 1)
+                plt.imshow(l_img, cmap='gray', interpolation='nearest')
+                plt.colorbar(orientation='horizontal',
+                             ticks=[l_img.min(), l_img.max()])
+                plt.axis('off')
+
+                fig.savefig(os.path.join(dir_path_reco, '%d.eps' % t))
+                plt.close()
+                
+                # Actual
+                fig = plt.figure()
+                fig.set_size_inches(2, 1.5)
+                plt.axis('off')
+
+                sp = fig.add_subplot(1, 1, 1)
+                plt.imshow(r_img, cmap='gray', interpolation='nearest')
+                plt.colorbar(orientation='horizontal',
+                             ticks=[r_img.min(), r_img.max()])
+                plt.axis('off')
+
+                fig.savefig(os.path.join(dir_path_orig, '%d.eps' % t))
                 plt.close()
 
             # dump video as well
-            command = 'avconv -framerate %d -i %s/%%d.png %s/video.mp4'\
-                    % (CA_SAMPLING_RATE, dir_path, dir_path)
+            if find_executable('ffmpeg'):
+                command = 'ffmpeg -framerate %d -i %s/%%d.png %s/video.mp4'\
+                        % (CA_SAMPLING_RATE, dir_path_comp, dir_path)
+            elif find_executable('avconv'):
+                command = 'avconv -framerate %d -i %s/%%d.png %s/video.mp4'\
+                        % (CA_SAMPLING_RATE, dir_path_comp, dir_path)
+            else:
+                print 'No video writer that I know of...'
+
             print command
             os.system(command)
             time.sleep(0.5)
 
 ################################################################################
 ################################################################################
-exp_type = 'natural'
+exp_type = 'grating'
 if exp_type == 'natural':
     from src.params.naturalmovies.datafile_params import PLOTS_DIR
     from src.params.naturalmovies.stimulus_params import CA_SAMPLING_RATE
@@ -98,30 +135,30 @@ elif exp_type == 'grating':
     from src.params.grating.stimulus_params import CA_SAMPLING_RATE
 
 movie_type = 'movie'
-downsample_factor = 4
+downsample_factor = 8
 n_lag = 13
 n_clusters = 4
-n_components = 64
+n_components = 16
 split_type = 'loo'
 model_name = 'linear-regression'
 model_type = 'reverse'
 regularisation = None
 
-responses = load_responses(exp_type)
+responses = map(smooth_responses, load_responses(exp_type))
 movies = load_movies(exp_type, movie_type, downsample_factor=downsample_factor)
 
-train_test_splits = map(lambda r: train_test_split(r, movies, split_type,
-                                                   train_frac=0.7,
-                                                   to_leave_out=0),
-
-                        responses)
-
 for i, response in enumerate(responses):
+    if i > 0:
+        break
+
     name = response.name
     print 'Mouse %s' % name
     
     print 'Splitting out training and test data...'
-    tr_rsp, te_rsp, tr_mov, te_mov = train_test_splits[i]
+    tr_rsp, te_rsp, tr_mov, te_mov = train_test_split(response, movies,
+                                                      split_type,
+                                                      train_frac=0.7,
+                                                      to_leave_out=0)
 
     print 'Fitting model parameters for %s %s...' % (model_type, model_name)
     if model_name == 'cca':
@@ -136,6 +173,7 @@ for i, response in enumerate(responses):
     model.fit(tr_rsp, tr_mov)
 
     print 'Reconstructing stimulus movies...'
+    te_rsp.data = te_rsp.data[:,:,:,:1]
     pred_movies = model.predict(te_rsp)
     ssims = model.reconstruction_quality(pred_movies, te_mov)
 

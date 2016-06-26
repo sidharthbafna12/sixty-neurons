@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 """ train_neural_network.py
+    Also trains a neural network to fit neural responses. Uses FANN.
+    
+    Not being used right now. So probably doesn't work with the current state of
+    the data etc.
 """
 
 import numpy as np

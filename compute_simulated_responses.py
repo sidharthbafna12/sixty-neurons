@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 """ compute_simulated_responses.py
+    Runs the multilayer perceptron trained on mouse V1 responses to get
+    simulated responses to any set of videos.
+
+    Used on the breakfast dataset here.
+
+    The output is used as feature vectors in a classification framework, to find
+    whether the MLP model generates simulated responses of any use.
 """
 
 import numpy as np
@@ -20,7 +27,7 @@ def get_simulated_responses(model_dir, videos):
     return responses
 
 def dump_features(f_dir, features, names):
-    for i, (name, class_features) in enumerate(zip(features, names)):
+    for i, (class_features, name) in enumerate(zip(features, names)):
         class_dir = os.path.join(f_dir, name)
         if not os.path.isdir(class_dir):
             os.makedirs(class_dir)
@@ -46,18 +53,19 @@ def read_grating_videos(dirs):
     return videos
 """
 
-def compute_responses():
+def compute_responses(mlps_dir):
     stim_type = 'breakfast'
     spatial_downsample_factor = 4
-    mlps_dir = './temp/mlp-models/'
 
     if stim_type == 'breakfast':
         video_dir = './temp/breakfast_sorted/cam01/'
-        features_dir = './temp/video_features/'
+        features_dir = os.path.join('./temp/video_features/',
+                                    os.path.basename(
+                                        os.path.normpath(mlps_dir)))
     else:
         raise NotImplementedError
     
-    print 'Reading in the videos...'
+    print 'Reading in the videos from %s...' % mlps_dir
     videos = read_videos(video_dir,
             spatial_downsample_factor=spatial_downsample_factor)
     print 'Read.'
@@ -81,4 +89,5 @@ def compute_responses():
             print 'Stored.\n'
 
 if __name__ == '__main__':
-    compute_responses()
+    mlps_dir = './temp/mlp-models-1000'
+    compute_responses(mlps_dir)

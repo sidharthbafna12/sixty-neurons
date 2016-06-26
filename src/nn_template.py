@@ -13,6 +13,8 @@
     New method:
     Find distance to all centroids for each stimulus kind. Use the argmin among
     mins as the nearest stimulus kind for the response.
+
+    TODO : Hasn't been tested in a while : needs a look.
 """
 
 # Basics

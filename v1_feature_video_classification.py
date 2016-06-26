@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 """ v1_feature_video_classification.py
+    Runs a classifier on top of the simulated V1 responses.
+
+    Currently not being used as an HMM-based classifier is implemented in the
+    hmm directory. The classifier there uses HTK.
 """
 
 import numpy as np

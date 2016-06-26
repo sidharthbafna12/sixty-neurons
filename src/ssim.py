@@ -1,4 +1,5 @@
 """ ssim.py
+    Structural Similarity Index Metric to compute similarity between two images.
 """
 
 import numpy as np

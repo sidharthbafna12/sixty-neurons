@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+""" sort_breakfast_dataset.py
+    Extracts clips from the breakfast dataset using the annotations provided.
+    Only the actions in the selected_actions list are extracted.
+
+    Frames are also downsampled here to slightly deal with the same issues faced
+    elsewhere : computation time and paucity of data.
+"""
 
 import shutil, os
 # import cv2

@@ -1,5 +1,9 @@
-""" linear_regression.py
-    Linear Regression to reconstruct stimulus from responses.
+""" linear_reconstruction.py
+    Linear Models to reconstruct stimulus from responses.
+
+    So far, Canonical Correlation Analysis and simple linear regression have
+    been added. Regularisation techniques are yet to be tested, but are present
+    as a sort-of-dummy.
 """
 
 import numpy as np
@@ -19,8 +23,8 @@ class LinearReconstruction:
         self.n_lag = n_lag
         self.model_name = model_name
         self.model_type = model_type
-        self.n_clusters = n_clusters
-        self.clustering = NeuronClustering(self.n_clusters, signal_correlation)
+        # self.n_clusters = n_clusters
+        # self.clustering = NeuronClustering(self.n_clusters, signal_correlation)
         
         if model_name == 'cca':
             self.n_components = n_components
@@ -47,44 +51,41 @@ class LinearReconstruction:
         self.LY, self.LX, n_samples = stim[0].shape
         n_px = self.LY * self.LX
 
-        self.clustering.fit(rsp.data)
-        dn_rsp_data = self.clustering.divnorm(rsp.data)
-
-        # Average the response across trials.
-        avg_rsp = np.mean(dn_rsp_data, axis=3)
-
         # Remove the baseline response for all cells.
         self.baseline_rsps = np.zeros(n_cells)
         for i_n in range(n_cells):
-            self.baseline_rsps[i_n] = avg_rsp[:,i_n,:].mean()
-            avg_rsp[:,i_n,:] -= self.baseline_rsps[i_n]
+            self.baseline_rsps[i_n] = rsp.data[:,i_n,:,:].mean()
+            rsp.data[:,i_n,:] -= self.baseline_rsps[i_n]
         
         if self.model_type == 'reverse':
             # Pad with zeros to fill out the responses at the end.
-            avg_rsp = np.pad(avg_rsp, ((0,0), (0,0), (0,self.n_lag-1)),
-                             mode='constant')
+            rsp.data = np.pad(rsp.data, ((0,0), (0,0), (0,self.n_lag-1), (0,0)),
+                              mode='constant')
 
             # Create the X and Y matrices.
-            X = np.zeros((n_stim * n_samples, n_cells * self.n_lag))
-            Y = np.zeros((n_stim * n_samples, n_px))
+            X = np.zeros((n_stim * n_samples * n_trials, n_cells * self.n_lag))
+            Y = np.zeros((n_stim * n_samples * n_trials, n_px))
             for i_s in range(n_stim):
                 for i_t in range(n_samples):
-                    row = i_s * n_samples + i_t
-                    X[row,:] = avg_rsp[i_s,:,i_t:i_t+self.n_lag].flatten()
-                    Y[row,:] = stim[i_s][:,:,i_t].flatten()
+                    for i_tr in range(n_trials):
+                        row = i_s * (n_samples*n_trials) + i_t*n_trials + i_tr
+                        X[row,:] = rsp.data[i_s,:,i_t:i_t+self.n_lag,i_tr]\
+                                      .flatten()
+                        Y[row,:] = stim[i_s][:,:,i_t].flatten()
         elif self.model_type == 'forward':
             # Pad movie with zeros to fill it out.
             p_stim = [np.pad(m,((0,0),(0,0),(self.n_lag-1,0)),mode='constant')
                       for m in stim]
             
             # Creating the X and Y matrices.
-            X = np.zeros((n_stim * n_samples, n_cells))
-            Y = np.zeros((n_stim * n_samples, n_px * self.n_lag))
+            X = np.zeros((n_stim * n_samples * n_trials, n_cells))
+            Y = np.zeros((n_stim * n_samples * n_trials, n_px * self.n_lag))
             for i_s in range(n_stim):
                 for i_t in range(n_samples):
-                    row = i_s * n_samples + i_t
-                    X[row,:] = avg_rsp[i_s,:,i_t]
-                    Y[row,:] = p_stim[i_s][:,:,i_t:i_t+self.n_lag].flatten()
+                    for i_tr in range(n_trials):
+                        row = i_s * (n_samples*n_trials) + i_t*n_trials + i_tr
+                        X[row,:] = rsp.data[i_s,:,i_t,i_tr]
+                        Y[row,:] = p_stim[i_s][:,:,i_t:i_t+self.n_lag].flatten()
         
         self.model.fit(X, Y)
 
@@ -100,7 +101,6 @@ class LinearReconstruction:
         reconstructed = []
         
         r = rsp.data
-        r = self.clustering.divnorm(r)
         r = np.pad(r, ((0,0), (0,0), (0,self.n_lag-1), (0,0)),
                    mode='constant')
 

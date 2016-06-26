@@ -1,4 +1,10 @@
-""" divisive_norm.py
+""" clustering.py
+    Computes clustering using a given correlation function as a distance metric.
+    Uses the distance metric for clustering with the hierarchical agglomerative
+    clustering.
+
+    The clustering can be used for reducing dimensionality (using cluster mean
+    as representative), divisive normalisation, etc.
 """
 
 import numpy as np
@@ -14,8 +20,8 @@ class NeuronClustering:
     def fit(self, data):
         C = self.corr(data)
         dists = squareform(0.5 * (1.0 - C))
-        linkage = hac.linkage(dists, method='complete')
-        self.cl_idxs = hac.fcluster(linkage, self.n_clusters,
+        self.linkage = hac.linkage(dists, method='complete')
+        self.cl_idxs = hac.fcluster(self.linkage, self.n_clusters,
                                     criterion='maxclust')
         self.n_stim, self.n_cells, self.n_samples, self.n_trials = data.shape
 

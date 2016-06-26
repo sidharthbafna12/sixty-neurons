@@ -1,5 +1,15 @@
 #!/usr/bin/env python
-""" mlp_response_model.py
+""" train_mlp_response_model.py
+    Fits a multilayer perceptron to the recorded V1 responses.
+
+    The input layer represents a sliding window over the input video.
+
+    The hidden layer is a tanh activation layer.
+
+    The output layer is a rectified linear unit. It represents the responses
+    from the neurons studied.
+
+    One MLP is fit per mouse.
 """
 import numpy as np
 
@@ -9,7 +19,9 @@ from src.io import load_responses, load_movies
 from src.data_manip_utils import smooth_responses, train_test_split
 
 import cPickle as pickle
+import shutil
 import os
+os.environ['OMP_NUM_THREADS'] = '16'
 
 import theano
 theano.config.openmp = True
@@ -44,22 +56,30 @@ def window_matrices(rsp, movs, n_lag):
     
     return shared_dataset((mov_mat, rsp_mat))
 
-def fit_mlp_models(n_hidden=1000, learning_rate=0.15, n_epochs=100,
+def fit_mlp_models(n_hidden=25, learning_rate=0.15, n_epochs=100,
                    batch_size=600, L1_reg=0.0e-9, L2_reg = 0.0e-9):
     exp_type = 'natural'
     movie_type = 'movie'
     spatial_downsample_factor = 4
-    n_lag = 6
-    saved_models_dir = './temp/mlp-models'
-    predicted_responses_dir = './temp/mlp-predicted-responses'
+    n_lag = 13
+    saved_models_dir = './temp/mlp-models-%d' % n_hidden
+    predicted_responses_dir = './temp/mlp-predicted-responses-%s' % n_hidden
     if not os.path.isdir(saved_models_dir):
+        os.makedirs(saved_models_dir)
+    else:
+        shutil.rmtree(saved_models_dir)
         os.makedirs(saved_models_dir)
     if not os.path.isdir(predicted_responses_dir):
         os.makedirs(predicted_responses_dir)
+    else:
+        shutil.rmtree(predicted_responses_dir)
+        os.makedirs(predicted_responses_dir)
 
+    print '%d hidden layer neurons, %d epochs to train for'%(n_hidden,n_epochs)
     responses = load_responses(exp_type)
     movies = load_movies(exp_type, movie_type,
                          downsample_factor=spatial_downsample_factor)
+    mlp_training_errors = []
     
     for i, response in enumerate(responses):
         name = response.name
@@ -89,13 +109,17 @@ def fit_mlp_models(n_hidden=1000, learning_rate=0.15, n_epochs=100,
         model.setup_with_data([(train_set_x, train_set_y),
                                (valid_set_x, valid_set_y),
                                (test_set_x, test_set_y)])
-        model.train()
+        test_error = model.train()
+        mlp_training_errors.append(test_error)
         
         predicted = model.y_pred()
         np.save(os.path.join(predicted_responses_dir, 'pred_%s' % name),
                 predicted)
         with open(os.path.join(saved_models_dir,'mlp_%s' % name), 'wb') as f:
             pickle.dump(model.regression.params, f)
+
+    with open(os.path.join(saved_models_dir, 'train_errors'), 'wb') as f:
+        pickle.dump(mlp_training_errors, f)
 
 if __name__ == "__main__":
     fit_mlp_models()

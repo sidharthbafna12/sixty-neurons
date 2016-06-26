@@ -1,4 +1,7 @@
+#!/usr/bin/env python
 """ mlp_test.py
+    Verifying that I can run Theano for a simple regression task.
+    Also that my classes in src.nnet_regression are working correctly.
 """
 from __future__ import print_function
 from src.nnet_regression import MLPRegression, shared_dataset

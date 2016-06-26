@@ -3,6 +3,22 @@
     Reads in the V1 response data stored as .mat structs of different forms and
     collects them into a single fixed NumPy array format
         (S, N, L, R) : (Stimulus index, Neuron index, Time index, Trial index)
+
+    NOTE: For natural movies, the given mat files were of the order
+        1-5     : original movies
+        6-10    : K0 movies
+        11-15   : K1 movies
+        16-20   : K2 movies
+        21-25   : K3 movies (we do not have responses for these, so ignored)
+        26-30   : K1.5 movies
+    This influences the way responses for natural movies are stored. The
+    responses are read and stored in the order above, with the K3 part in the
+    middle ignored. So...
+        0-4 : nat
+        5-9 : K0
+        10-14 : K1
+        15-19 : K2
+        20-24 : K1.5
 """
 
 import os
@@ -90,18 +106,27 @@ data = [sio.loadmat(loc, struct_as_record=False, squeeze_me=True)['AmpMov']
 
 for i, d in enumerate(data):
     print 'Saving %d...' % i
+
+    # Reading the responses in the order in which their corresponding movies
+    # were originally stored. This is important.
     response = list(d.MT_nat)
     response.extend(list(d.MT_K0))
     response.extend(list(d.MT_K1))
     response.extend(list(d.MT_K2))
     response.extend(list(d.MT_K1_5))
-
+    
+    # Keeping a uniform number of trials for each movie for less trouble later.
+    # Means we lose some data, but maybe it's worth it compared to the pain
+    # it'll be to manage a non-uniform sized list of lists-kind of thing.
     min_trials = min(map(lambda s : s.shape[2], response))
+
     array = np.array([s[:,:,:min_trials] for s in response])
     np.save(os.path.join(DATA_DIR, str(i)), array)
 
 ################################################################################
 # What's that? Another natural movie dataset?
+# This had responses to natural movies from the gratings mice. These haven't
+# been used anywhere yet...
 print 'Reading the second natural movie dataset...'
 if not os.path.isdir(DATA_DIR_2):
     os.makedirs(DATA_DIR_2)

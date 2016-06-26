@@ -21,26 +21,28 @@ from src.io import load_responses
 from src.response import Response
 from src.reliability import reliability
 from src.correlation import signal_correlation, noise_correlation
+from src.clustering import NeuronClustering
+from src.data_manip_utils import smooth_responses
 
 n_clusters = 3
 exp_type = 'natural'
-
-"""
-if exp_type == 'grating':
-    from src.params.grating.datafile_params import *
-    from src.params.grating.stimulus_params import *
-    data_locs = [os.path.join(DATA_DIR, '%s_dir.npy' % c) for c in MICE_NAMES]
-    data = map(lambda (n, loc) : Response(n, loc), zip(MICE_NAMES, data_locs))
-elif exp_type == 'natural':
-    from src.params.naturalmovies.datafile_params import *
-    from src.params.naturalmovies.stimulus_params import *
-    data_locs = [os.path.join(DATA_DIR, '%d.npy' % i) for i in range(11)]
-    data = [Response(str(i), data_locs[i]) for i in range(11)]
-"""
+if exp_type == 'natural':
+    from src.params.naturalmovies.datafile_params import PLOTS_DIR
+elif exp_type == 'grating':
+    from src.params.grating.datafile_params import PLOTS_DIR
 
 data = load_responses(exp_type)
 for index, m in enumerate(data):
     print 'Mouse %s' % m.name
+    if exp_type == 'natural':
+        m.data = m.data[:5,:,:,:]
+
+    data[index] = smooth_responses(m)
+    m = data[index]
+    
+    m.clustering = NeuronClustering(n_clusters, signal_correlation)
+    m.clustering.fit(m.data)
+    m.data = m.clustering.divnorm(m.data)
 
     S, N, L, R = m.data.shape
 
@@ -65,26 +67,26 @@ for index, m in enumerate(data):
     hac_response_nc = m.data[:,m.hac_idxs_nc,:,:]
     m.noise_corr_hac = noise_correlation(hac_response_nc)
     
-    """
     # Cluster reliability.
     # From signal correlations.
     m.cl_idxs_sc = hac.fcluster(m.linkage_sc, n_clusters, criterion='maxclust')
     m.sc_cluster_reliability = np.zeros((n_clusters+1,S))
+    m.mean_cluster_rsp_sc = np.zeros((S, n_clusters, L, R))
     for i in range(1, n_clusters+1):
         idxs = np.arange(N)
         idxs = idxs[m.cl_idxs_sc == i]
-        mean_cluster_rsp = m.data[:,idxs,:,:].mean(axis=1)
-        m.sc_cluster_reliability[i,:] = reliability(mean_cluster_rsp)
+        m.mean_cluster_rsp_sc[:,i-1,:,:] = m.data[:,idxs,:,:].mean(axis=1)
+    m.sc_cluster_reliability = reliability(m.mean_cluster_rsp_sc)
     
     # From noise correlations.
     m.cl_idxs_nc = hac.fcluster(m.linkage_nc, n_clusters, criterion='maxclust')
     m.nc_cluster_reliability = np.zeros((n_clusters+1,S))
+    m.mean_cluster_rsp_nc = np.zeros((S, n_clusters, L, R))
     for i in range(1, n_clusters+1):
         idxs = np.arange(N)
         idxs = idxs[m.cl_idxs_nc == i]
-        mean_cluster_rsp = m.data[:,idxs,:,:].mean(axis=1)
-        m.nc_cluster_reliability[i,:] = reliability(mean_cluster_rsp)
-    """
+        m.mean_cluster_rsp_nc[:,i-1,:,:] = m.data[:,idxs,:,:].mean(axis=1)
+    m.nc_cluster_reliability = reliability(m.mean_cluster_rsp_nc)
 
     ############################################################################
     # Plotting
@@ -136,9 +138,8 @@ for index, m in enumerate(data):
                 bbox_inches='tight')
     plt.close()
 
-    """
     # Cluster reliabilities.
-    for i in range(1, n_clusters+1):
+    for i in range(n_clusters):
         fig, ax = plt.subplots()
         plt.scatter(np.arange(S), m.sc_cluster_reliability[i,:])
         rel_sc, = plt.plot(np.arange(S), m.sc_cluster_reliability[i,:],
@@ -151,7 +152,7 @@ for index, m in enumerate(data):
         plt.xlabel('%s stimulus index' % exp_type)
         plt.ylabel('Reliability')
         plt.title('Reliability of %s responses' % exp_type)
-        plt.legend(handles=handles)
+        plt.legend(handles)
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.85, box.height])
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
@@ -160,4 +161,22 @@ for index, m in enumerate(data):
                                  '%d.eps' % i),
                     bbox_inches='tight')
         plt.close()
-    """
+
+rel_all= np.hstack([m.sc_cluster_reliability.flatten() for m in data]).flatten()
+print exp_type, np.median(rel_all)
+# Histogram of reliability values.
+n_bins = 50
+fig = plt.figure()
+fig.set_size_inches(3, 2)
+x = np.linspace(np.min(rel_all), np.max(rel_all), num=n_bins+1)[:-1]
+d = (x[-1] - x[0]) / (n_bins-1)
+y = np.histogram(rel_all, bins=n_bins)[0]
+plt.bar(x, y, d)
+plt.locator_params(nbins=3)
+plt.xlabel('Reliability')
+plt.ylabel('Count')
+plt.title('Reliability value histogram')
+fig.savefig(os.path.join(PLOTS_DIR, 'clustering', 'reliability',
+                         'cluster-reliability-histogram_sc-%s.eps'%exp_type),
+            bbox_inches='tight')
+plt.close()

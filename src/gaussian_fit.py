@@ -1,3 +1,9 @@
+""" gaussian_fit.py
+    Double Gaussian fit for orientation tuning curves.
+
+    Also contains some (unused) single Gaussian fit code for direction tuning.
+"""
+
 import numpy as np
 from scipy.optimize import curve_fit
 

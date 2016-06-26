@@ -1,5 +1,9 @@
 """ reliability.py
     Computes response reliability.
+
+    Reliability is defined as the average Pearson correlation coefficient
+    between two different responses to the same movie, computed over all trials
+    of the recording experiment for a given movie.
 """
 
 import numpy as np
