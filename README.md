@@ -59,3 +59,21 @@ where the array now holds only the inferred spike rates and nothing else.
 - Linear regression-based reconstruction (reverse correlation)
     - Forward and backward models : reconstruction.py
     - Effect of regularisation : TODO
+
+--------------------------------------------------------------------------------
+
+# Procedure to follow
+0. Ask me for the data, which is not a part of this repository.
+1. Use mat_to_npy.py for converting the data from original mat files to the
+   NumPy format.
+2. make_movies.py to generate the stimulus movies in the case of gratings and to
+   read them from mat files in the case of natural movies. This also generates
+   edge representations of the same movies, with the edges computed in time
+   (using frame differencing) and space (using a difference-of-Gaussians
+   filter).
+3. downsample_videos.py to downsample the movies using scipy.signal.decimate.
+
+This should be enough to get the data in a ready state. From now on, it depends
+on the experiment you want to perform. Most experiments need a single file; the
+ones which have a sequence to them are described in some detail in the
+'Experiments' section.
